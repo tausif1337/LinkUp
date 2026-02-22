@@ -16,12 +16,11 @@ import {
 } from 'react-native';
 import { User, signOut, updateProfile } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { Camera, Edit2, Shield, Bell, HelpCircle, ChevronRight, ArrowLeft, LogOut, Check, X, User as UserIcon } from 'lucide-react-native';
-import { auth, db, storage } from '../config/firebase';
+import { auth, db } from '../config/firebase';
 import * as ImagePicker from 'expo-image-picker';
 import { Theme } from '../theme/Theme';
-import { pickImage, uploadImage } from '../utils/imageUtils';
+import { pickImage } from '../utils/imageUtils';
 
 const { width } = Dimensions.get('window');
 
@@ -40,7 +39,6 @@ type UserProfile = {
 export default function ProfileScreen({ user, onNavigate }: Props) {
   const [isInitializing, setIsInitializing] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [uploadingImage, setUploadingImage] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
 
   const [profile, setProfile] = useState<UserProfile>({
@@ -159,21 +157,8 @@ export default function ProfileScreen({ user, onNavigate }: Props) {
     const asset = await pickImage(useCamera);
     if (!asset) return;
 
-    setUploadingImage(true);
-    try {
-      const filename = `profile_${user.uid}_${Date.now()}.jpg`;
-      const uploadPath = `profile_images/${user.uid}/${filename}`;
-      const downloadURL = await uploadImage(asset.base64 || '', uploadPath);
-
-      if (downloadURL) {
-        setEditedProfile(prev => ({ ...prev, photoURL: downloadURL }));
-        if (!isEditing) setIsEditing(true);
-      }
-    } catch (error) {
-      Alert.alert('Error', 'Failed to upload image.');
-    } finally {
-      setUploadingImage(false);
-    }
+    setEditedProfile(prev => ({ ...prev, photoURL: asset.uri }));
+    if (!isEditing) setIsEditing(true);
   };
 
   const showImagePickerOptions = () => {
@@ -224,13 +209,9 @@ export default function ProfileScreen({ user, onNavigate }: Props) {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.profileHero}>
-            <Pressable onPress={showImagePickerOptions} disabled={uploadingImage}>
+            <Pressable onPress={showImagePickerOptions}>
               <View style={styles.photoWrapper}>
-                {uploadingImage ? (
-                  <View style={styles.photoOverlay}>
-                    <ActivityIndicator color="#fff" />
-                  </View>
-                ) : editedProfile.photoURL ? (
+                {editedProfile.photoURL ? (
                   <Image source={{ uri: editedProfile.photoURL }} style={styles.photo} />
                 ) : (
                   <View style={styles.photoPlaceholder}>

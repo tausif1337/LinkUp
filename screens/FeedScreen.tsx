@@ -13,7 +13,7 @@ import { signOut, User } from 'firebase/auth';
 import { LogOut, User as UserIcon, Bell, Search, PlusCircle, LayoutGrid, Users, MessageSquare, Image as ImageIcon } from 'lucide-react-native';
 import { auth, db } from '../config/firebase';
 import { Theme } from '../theme/Theme';
-import { pickImage, uploadImage } from '../utils/imageUtils';
+import { pickImage } from '../utils/imageUtils';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 
 type Props = {
@@ -23,7 +23,6 @@ type Props = {
 
 export default function FeedScreen({ user, onNavigate }: Props) {
   const [loading, setLoading] = useState(false);
-  const [uploading, setUploading] = useState(false);
 
   const handleLogout = async () => {
     if (loading) return;
@@ -38,31 +37,8 @@ export default function FeedScreen({ user, onNavigate }: Props) {
   };
 
   const handleNewPost = async () => {
-    const imageAsset = await pickImage();
-    if (!imageAsset) return;
-
-    setUploading(true);
-    try {
-      const filename = `post_${user.uid}_${Date.now()}.jpg`;
-      const uploadPath = `posts/${user.uid}/${filename}`;
-      const downloadURL = await uploadImage(imageAsset.base64 || '', uploadPath);
-
-      // Create post document in Firestore
-      await addDoc(collection(db, 'posts'), {
-        userId: user.uid,
-        userName: user.displayName || user.email?.split('@')[0],
-        userPhoto: user.photoURL || '',
-        imageUrl: downloadURL,
-        createdAt: serverTimestamp(),
-      });
-
-      Alert.alert('Success', 'Your post has been uploaded!');
-    } catch (error) {
-      console.error('Upload error:', error);
-      Alert.alert('Error', 'Failed to upload post image.');
-    } finally {
-      setUploading(false);
-    }
+    // Firebase Storage upload removed
+    Alert.alert('Notice', 'Image upload functionality has been removed.');
   };
 
   return (
@@ -108,16 +84,11 @@ export default function FeedScreen({ user, onNavigate }: Props) {
           <Pressable
             style={styles.actionItem}
             onPress={handleNewPost}
-            disabled={uploading}
           >
             <View style={[styles.actionIcon, { backgroundColor: '#EEF2FF' }]}>
-              {uploading ? (
-                <ActivityIndicator color={Theme.colors.primary} size="small" />
-              ) : (
-                <PlusCircle color={Theme.colors.primary} size={24} />
-              )}
+              <PlusCircle color={Theme.colors.primary} size={24} />
             </View>
-            <Text style={styles.actionLabel}>{uploading ? 'Uploading...' : 'New Post'}</Text>
+            <Text style={styles.actionLabel}>New Post</Text>
           </Pressable>
           <Pressable style={styles.actionItem}>
             <View style={[styles.actionIcon, { backgroundColor: '#ECFDF5' }]}>

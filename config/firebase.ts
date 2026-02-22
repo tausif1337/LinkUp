@@ -2,9 +2,7 @@ import { initializeApp, getApps, getApp, FirebaseApp } from "firebase/app";
 // @ts-ignore
 import { getAuth, initializeAuth, getReactNativePersistence, Auth } from "firebase/auth";
 import { getFirestore, initializeFirestore, Firestore } from "firebase/firestore";
-import { getStorage } from "firebase/storage";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-
 const firebaseConfig = {
   apiKey: "AIzaSyDXC9WZuI8S0eZik1a7DtMR7vvQ-F9a724",
   authDomain: "linkup-ef051.firebaseapp.com",
@@ -43,6 +41,4 @@ if (getApps().length === 0) {
   }
 }
 
-const storage = getStorage(app);
-
-export { app, auth, db, storage };
+export { app, auth, db };

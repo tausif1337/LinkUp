@@ -1,6 +1,4 @@
 import * as ImagePicker from 'expo-image-picker';
-import { ref, uploadString, getDownloadURL } from 'firebase/storage';
-import { storage } from '../config/firebase';
 import { Alert } from 'react-native';
 
 export const pickImage = async (useCamera: boolean = false) => {
@@ -36,22 +34,5 @@ export const pickImage = async (useCamera: boolean = false) => {
         console.error('Error picking image:', error);
         Alert.alert('Error', 'An error occurred while picking the image.');
         return null;
-    }
-};
-
-export const uploadImage = async (base64Data: string, path: string) => {
-    try {
-        const storageRef = ref(storage, path);
-
-        // Using uploadString with base64 is way more reliable in Expo/React Native JS SDK
-        const metadata = {
-            contentType: 'image/jpeg',
-        };
-
-        await uploadString(storageRef, base64Data, 'base64', metadata);
-        return await getDownloadURL(storageRef);
-    } catch (error) {
-        console.error('Error uploading image:', error);
-        throw error;
     }
 };
