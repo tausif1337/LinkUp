@@ -12,9 +12,10 @@ import { auth } from '../config/firebase';
 
 type Props = {
   user: User;
+  onNavigate: (screen: 'Login' | 'Register' | 'Feed' | 'Profile') => void;
 };
 
-export default function FeedScreen({ user }: Props) {
+export default function FeedScreen({ user, onNavigate }: Props) {
   const [loading, setLoading] = useState(false);
 
   const handleLogout = async () => {
@@ -33,16 +34,24 @@ export default function FeedScreen({ user }: Props) {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.logo}>LinkUp</Text>
-        <Pressable
-          style={[styles.logoutButton, loading ? styles.buttonDisabled : null]}
-          onPress={handleLogout}
-        >
-          {loading ? (
-            <ActivityIndicator color="#FF3B30" size="small" />
-          ) : (
-            <Text style={styles.logoutText}>Logout</Text>
-          )}
-        </Pressable>
+        <View style={styles.headerButtons}>
+          <Pressable
+            style={styles.profileButton}
+            onPress={() => onNavigate('Profile')}
+          >
+            <Text style={styles.profileButtonText}>Profile</Text>
+          </Pressable>
+          <Pressable
+            style={[styles.logoutButton, loading ? styles.buttonDisabled : null]}
+            onPress={handleLogout}
+          >
+            {loading ? (
+              <ActivityIndicator color="#FF3B30" size="small" />
+            ) : (
+              <Text style={styles.logoutText}>Logout</Text>
+            )}
+          </Pressable>
+        </View>
       </View>
 
       <View style={styles.content}>
@@ -78,6 +87,22 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '800',
     color: '#007AFF',
+  },
+  headerButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  profileButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: '#007AFF',
+  },
+  profileButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
   },
   logoutButton: {
     paddingHorizontal: 16,

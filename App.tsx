@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, SafeAreaView } from 'react-native';
 import { onAuthStateChanged, User } from 'firebase/auth';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { auth } from './config/firebase';
 import LoginScreen from './screens/LoginScreen';
 import RegisterScreen from './screens/RegisterScreen';
 import FeedScreen from './screens/FeedScreen';
+import ProfileScreen from './screens/ProfileScreen';
 
-type Screen = 'Login' | 'Register' | 'Feed';
+type Screen = 'Login' | 'Register' | 'Feed' | 'Profile';
 
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState<Screen>('Login');
@@ -14,8 +16,31 @@ export default function App() {
   const [initializing, setInitializing] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    // Listen to auth state changes
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
+      
+      // Persist user session to AsyncStorage
+      if (currentUser) {
+        try {
+          await AsyncStorage.setItem('userSession', JSON.stringify({
+            uid: currentUser.uid,
+            email: currentUser.email,
+            displayName: currentUser.displayName,
+            photoURL: currentUser.photoURL,
+          }));
+        } catch (error) {
+          console.error('Error saving user session:', error);
+        }
+      } else {
+        // Clear stored session when user logs out
+        try {
+          await AsyncStorage.removeItem('userSession');
+        } catch (error) {
+          console.error('Error clearing user session:', error);
+        }
+      }
+      
       setInitializing(false);
     });
 
@@ -32,9 +57,16 @@ export default function App() {
   }
 
   if (user) {
+    if (currentScreen === 'Profile') {
+      return (
+        <SafeAreaView style={styles.safeArea}>
+          <ProfileScreen user={user} onNavigate={setCurrentScreen} />
+        </SafeAreaView>
+      );
+    }
     return (
       <SafeAreaView style={styles.safeArea}>
-        <FeedScreen user={user} />
+        <FeedScreen user={user} onNavigate={setCurrentScreen} />
       </SafeAreaView>
     );
   }
