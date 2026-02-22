@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { auth } from './config/firebase';
@@ -7,10 +8,20 @@ import LoginScreen from './screens/LoginScreen';
 import RegisterScreen from './screens/RegisterScreen';
 import FeedScreen from './screens/FeedScreen';
 import ProfileScreen from './screens/ProfileScreen';
+import { useFonts, Inter_400Regular, Inter_500Medium, Inter_700Bold } from '@expo-google-fonts/inter';
+import { Outfit_700Bold } from '@expo-google-fonts/outfit';
+import { Theme } from './theme/Theme';
 
 type Screen = 'Login' | 'Register' | 'Feed' | 'Profile';
 
 export default function App() {
+  const [fontsLoaded] = useFonts({
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_700Bold,
+    Outfit_700Bold,
+  });
+
   const [currentScreen, setCurrentScreen] = useState<Screen>('Login');
   const [user, setUser] = useState<User | null>(null);
   const [initializing, setInitializing] = useState(true);
@@ -19,7 +30,7 @@ export default function App() {
     // Listen to auth state changes
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
-      
+
       // Persist user session to AsyncStorage
       if (currentUser) {
         try {
@@ -40,49 +51,45 @@ export default function App() {
           console.error('Error clearing user session:', error);
         }
       }
-      
+
       setInitializing(false);
     });
 
     return unsubscribe;
   }, []);
 
-  if (initializing) {
+  if (initializing || !fontsLoaded) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#007AFF" />
-        <Text style={styles.loadingText}>Loading...</Text>
-      </View>
+      <SafeAreaProvider>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#007AFF" />
+          <Text style={styles.loadingText}>Loading...</Text>
+        </View>
+      </SafeAreaProvider>
     );
   }
 
-  if (user) {
-    if (currentScreen === 'Profile') {
-      return (
-        <SafeAreaView style={styles.safeArea}>
-          <ProfileScreen user={user} onNavigate={setCurrentScreen} />
-        </SafeAreaView>
-      );
+  const renderScreen = () => {
+    if (user) {
+      if (currentScreen === 'Profile') {
+        return <ProfileScreen user={user} onNavigate={setCurrentScreen} />;
+      }
+      return <FeedScreen user={user} onNavigate={setCurrentScreen} />;
     }
-    return (
-      <SafeAreaView style={styles.safeArea}>
-        <FeedScreen user={user} onNavigate={setCurrentScreen} />
-      </SafeAreaView>
-    );
-  }
 
-  if (currentScreen === 'Register') {
-    return (
-      <SafeAreaView style={styles.safeArea}>
-        <RegisterScreen onNavigate={setCurrentScreen} />
-      </SafeAreaView>
-    );
-  }
+    if (currentScreen === 'Register') {
+      return <RegisterScreen onNavigate={setCurrentScreen} />;
+    }
+
+    return <LoginScreen onNavigate={setCurrentScreen} />;
+  };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <LoginScreen onNavigate={setCurrentScreen} />
-    </SafeAreaView>
+    <SafeAreaProvider>
+      <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+        {renderScreen()}
+      </SafeAreaView>
+    </SafeAreaProvider>
   );
 }
 

@@ -6,9 +6,13 @@ import {
   Pressable,
   Alert,
   ActivityIndicator,
+  ScrollView,
+  SafeAreaView,
 } from 'react-native';
 import { signOut, User } from 'firebase/auth';
+import { LogOut, User as UserIcon, Bell, Search, PlusCircle, LayoutGrid, Users, MessageSquare } from 'lucide-react-native';
 import { auth } from '../config/firebase';
+import { Theme } from '../theme/Theme';
 
 type Props = {
   user: User;
@@ -31,129 +35,270 @@ export default function FeedScreen({ user, onNavigate }: Props) {
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.logo}>LinkUp</Text>
-        <View style={styles.headerButtons}>
-          <Pressable
-            style={styles.profileButton}
-            onPress={() => onNavigate('Profile')}
-          >
-            <Text style={styles.profileButtonText}>Profile</Text>
+        <View>
+          <Text style={styles.greeting}>Hello,</Text>
+          <Text style={styles.username}>{user.displayName || user.email?.split('@')[0]}</Text>
+        </View>
+        <View style={styles.headerActions}>
+          <Pressable style={styles.iconButton}>
+            <Search color={Theme.colors.textSecondary} size={22} />
+          </Pressable>
+          <Pressable style={styles.iconButton}>
+            <Bell color={Theme.colors.textSecondary} size={22} />
           </Pressable>
           <Pressable
-            style={[styles.logoutButton, loading ? styles.buttonDisabled : null]}
-            onPress={handleLogout}
+            style={styles.profileAvatar}
+            onPress={() => onNavigate('Profile')}
           >
-            {loading ? (
-              <ActivityIndicator color="#FF3B30" size="small" />
-            ) : (
-              <Text style={styles.logoutText}>Logout</Text>
-            )}
+            <UserIcon color={Theme.colors.primary} size={24} />
           </Pressable>
         </View>
       </View>
 
-      <View style={styles.content}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         <View style={styles.welcomeCard}>
-          <Text style={styles.welcomeEmoji}>👋</Text>
-          <Text style={styles.welcomeTitle}>Welcome!</Text>
-          <Text style={styles.welcomeEmail}>{user.email}</Text>
-          <Text style={styles.welcomeMessage}>
-            You're successfully logged in to LinkUp.
-          </Text>
+          <View style={styles.welcomeInfo}>
+            <Text style={styles.welcomeTitle}>Your Network</Text>
+            <Text style={styles.welcomeSubtitle}>Stay connected with your peers.</Text>
+            <Pressable style={styles.exploreBtn}>
+              <Text style={styles.exploreBtnText}>Explore Feed</Text>
+            </Pressable>
+          </View>
+          <LayoutGrid color={Theme.colors.primary} size={60} opacity={0.1} style={styles.bgIcon} />
         </View>
-      </View>
-    </View>
+
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Quick Actions</Text>
+        </View>
+
+        <View style={styles.actionsGrid}>
+          <Pressable style={styles.actionItem}>
+            <View style={[styles.actionIcon, { backgroundColor: '#EEF2FF' }]}>
+              <PlusCircle color={Theme.colors.primary} size={24} />
+            </View>
+            <Text style={styles.actionLabel}>New Post</Text>
+          </Pressable>
+          <Pressable style={styles.actionItem}>
+            <View style={[styles.actionIcon, { backgroundColor: '#ECFDF5' }]}>
+              <Users color="#10B981" size={24} />
+            </View>
+            <Text style={styles.actionLabel}>Contacts</Text>
+          </Pressable>
+          <Pressable style={styles.actionItem}>
+            <View style={[styles.actionIcon, { backgroundColor: '#FEF2F2' }]}>
+              <MessageSquare color="#F43F5E" size={24} />
+            </View>
+            <Text style={styles.actionLabel}>Messages</Text>
+          </Pressable>
+        </View>
+
+        <View style={styles.statusSection}>
+          <Text style={styles.statusTitle}>System Status</Text>
+          <View style={styles.statusCard}>
+            <View style={styles.statusIndicator} />
+            <Text style={styles.statusText}>All systems operational</Text>
+          </View>
+        </View>
+
+        <Pressable
+          style={styles.logoutButton}
+          onPress={handleLogout}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator color={Theme.colors.error} size="small" />
+          ) : (
+            <>
+              <LogOut color={Theme.colors.error} size={20} />
+              <Text style={styles.logoutText}>Sign Out</Text>
+            </>
+          )}
+        </Pressable>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: Theme.colors.background,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
-    paddingTop: 60,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    paddingHorizontal: Theme.spacing.lg,
+    paddingVertical: Theme.spacing.md,
+    backgroundColor: Theme.colors.surface,
   },
-  logo: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: '#007AFF',
+  greeting: {
+    fontSize: 14,
+    fontFamily: Theme.fonts.regular,
+    color: Theme.colors.textSecondary,
   },
-  headerButtons: {
+  username: {
+    fontSize: 20,
+    fontFamily: Theme.fonts.bold,
+    color: Theme.colors.text,
+  },
+  headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: Theme.spacing.sm,
   },
-  profileButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-    backgroundColor: '#007AFF',
-  },
-  profileButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  logoutButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#FF3B30',
-  },
-  buttonDisabled: {
-    opacity: 0.7,
-  },
-  logoutText: {
-    color: '#FF3B30',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  content: {
-    flex: 1,
-    padding: 16,
+  iconButton: {
+    width: 40,
+    height: 40,
+    borderRadius: Theme.borderRadius.md,
+    backgroundColor: Theme.colors.background,
     justifyContent: 'center',
+    alignItems: 'center',
+  },
+  profileAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: Theme.borderRadius.full,
+    backgroundColor: '#EEF2FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: Theme.colors.primaryLight,
+  },
+  scrollContent: {
+    padding: Theme.spacing.lg,
   },
   welcomeCard: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 32,
+    backgroundColor: Theme.colors.primary,
+    borderRadius: Theme.borderRadius.xl,
+    padding: Theme.spacing.xl,
+    flexDirection: 'row',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
+    overflow: 'hidden',
+    position: 'relative',
+    marginBottom: Theme.spacing.xl,
   },
-  welcomeEmoji: {
-    fontSize: 48,
-    marginBottom: 16,
+  welcomeInfo: {
+    flex: 1,
+    zIndex: 1,
   },
   welcomeTitle: {
     fontSize: 24,
-    fontWeight: '700',
-    color: '#1a1a1a',
-    marginBottom: 8,
+    fontFamily: Theme.fonts.display,
+    color: '#fff',
+    marginBottom: Theme.spacing.xs,
   },
-  welcomeEmail: {
-    fontSize: 16,
-    color: '#007AFF',
-    fontWeight: '500',
-    marginBottom: 16,
-  },
-  welcomeMessage: {
+  welcomeSubtitle: {
     fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
+    fontFamily: Theme.fonts.regular,
+    color: 'rgba(255,255,255,0.8)',
+    marginBottom: Theme.spacing.lg,
+  },
+  exploreBtn: {
+    backgroundColor: '#fff',
+    paddingHorizontal: Theme.spacing.md,
+    paddingVertical: Theme.spacing.sm,
+    borderRadius: Theme.borderRadius.md,
+    alignSelf: 'flex-start',
+  },
+  exploreBtnText: {
+    color: Theme.colors.primary,
+    fontFamily: Theme.fonts.bold,
+    fontSize: 14,
+  },
+  bgIcon: {
+    position: 'absolute',
+    right: -10,
+    bottom: -10,
+    zIndex: 0,
+  },
+  sectionHeader: {
+    marginBottom: Theme.spacing.md,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontFamily: Theme.fonts.bold,
+    color: Theme.colors.text,
+  },
+  actionsGrid: {
+    flexDirection: 'row',
+    gap: Theme.spacing.md,
+    marginBottom: Theme.spacing.xl,
+  },
+  actionItem: {
+    flex: 1,
+    backgroundColor: Theme.colors.surface,
+    padding: Theme.spacing.md,
+    borderRadius: Theme.borderRadius.lg,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 5,
+    elevation: 2,
+  },
+  actionIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: Theme.borderRadius.md,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: Theme.spacing.sm,
+  },
+  actionLabel: {
+    fontSize: 12,
+    fontFamily: Theme.fonts.medium,
+    color: Theme.colors.text,
+  },
+  statusSection: {
+    marginBottom: Theme.spacing.xl,
+  },
+  statusTitle: {
+    fontSize: 14,
+    fontFamily: Theme.fonts.bold,
+    color: Theme.colors.textSecondary,
+    marginBottom: Theme.spacing.sm,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  statusCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ECFDF5',
+    padding: Theme.spacing.md,
+    borderRadius: Theme.borderRadius.md,
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+  },
+  statusIndicator: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#10B981',
+    marginRight: Theme.spacing.sm,
+  },
+  statusText: {
+    fontSize: 14,
+    fontFamily: Theme.fonts.medium,
+    color: '#065F46',
+  },
+  logoutButton: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: Theme.spacing.md,
+    borderRadius: Theme.borderRadius.md,
+    borderWidth: 1,
+    borderColor: '#FEE2E2',
+    gap: Theme.spacing.sm,
+    marginTop: Theme.spacing.md,
+  },
+  logoutText: {
+    color: Theme.colors.error,
+    fontFamily: Theme.fonts.bold,
+    fontSize: 15,
   },
 });
+

@@ -9,9 +9,13 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  TouchableWithoutFeedback,
+  Keyboard,
 } from 'react-native';
 import { signInWithEmailAndPassword } from 'firebase/auth';
+import { Mail, Lock, LogIn, ArrowRight } from 'lucide-react-native';
 import { auth } from '../config/firebase';
+import { Theme } from '../theme/Theme';
 
 type Props = {
   onNavigate: (screen: 'Login' | 'Register' | 'Feed') => void;
@@ -47,7 +51,6 @@ export default function LoginScreen({ onNavigate }: Props) {
     setLoading(true);
     try {
       await signInWithEmailAndPassword(auth, email.trim(), password);
-      // Auth state listener will handle navigation
     } catch (error: any) {
       let message = 'Login failed. Please try again.';
       if (error.code === 'auth/user-not-found') {
@@ -56,8 +59,6 @@ export default function LoginScreen({ onNavigate }: Props) {
         message = 'Incorrect password.';
       } else if (error.code === 'auth/invalid-email') {
         message = 'Invalid email address.';
-      } else if (error.code === 'auth/too-many-requests') {
-        message = 'Too many attempts. Please try again later.';
       }
       Alert.alert('Login Error', message);
     } finally {
@@ -66,170 +67,232 @@ export default function LoginScreen({ onNavigate }: Props) {
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
-    >
-      <View style={styles.header}>
-        <Text style={styles.logo}>LinkUp</Text>
-        <Text style={styles.tagline}>Connect with friends & family</Text>
-      </View>
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.container}
+      >
+        <View style={styles.content}>
+          <View style={styles.header}>
+            <View style={styles.logoContainer}>
+              <LogIn color={Theme.colors.primary} size={40} />
+            </View>
+            <Text style={styles.logoText}>LinkUp</Text>
+            <Text style={styles.tagline}>Connect, share, and grow with your network.</Text>
+          </View>
 
-      <View style={styles.form}>
-        <Text style={styles.title}>Welcome Back</Text>
-        <Text style={styles.subtitle}>Sign in to continue</Text>
+          <View style={styles.form}>
+            <Text style={styles.title}>Welcome Back</Text>
+            <Text style={styles.subtitle}>Enter your details to sign in</Text>
 
-        <View style={styles.inputContainer}>
-          <Text style={styles.label}>Email</Text>
-          <TextInput
-            style={[styles.input, errors.email ? styles.inputError : null]}
-            placeholder="Enter your email"
-            placeholderTextColor="#999"
-            value={email}
-            onChangeText={(text) => {
-              setEmail(text);
-              if (errors.email) setErrors({ ...errors, email: undefined });
-            }}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoCorrect={false}
-            editable={!loading}
-          />
-          {errors.email ? <Text style={styles.errorText}>{errors.email}</Text> : null}
+            <View style={styles.inputWrapper}>
+              <View style={[styles.inputContainer, errors.email && styles.inputError]}>
+                <Mail color={errors.email ? Theme.colors.error : Theme.colors.textMuted} size={20} style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Email Address"
+                  placeholderTextColor={Theme.colors.textMuted}
+                  value={email}
+                  onChangeText={(text) => {
+                    setEmail(text);
+                    if (errors.email) setErrors({ ...errors, email: undefined });
+                  }}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  editable={!loading}
+                />
+              </View>
+              {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
+            </View>
+
+            <View style={styles.inputWrapper}>
+              <View style={[styles.inputContainer, errors.password && styles.inputError]}>
+                <Lock color={errors.password ? Theme.colors.error : Theme.colors.textMuted} size={20} style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Password"
+                  placeholderTextColor={Theme.colors.textMuted}
+                  value={password}
+                  onChangeText={(text) => {
+                    setPassword(text);
+                    if (errors.password) setErrors({ ...errors, password: undefined });
+                  }}
+                  secureTextEntry
+                  editable={!loading}
+                />
+              </View>
+              {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
+            </View>
+
+            <Pressable
+              style={({ pressed }) => [
+                styles.button,
+                (loading || pressed) && styles.buttonDisabled,
+              ]}
+              onPress={handleLogin}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <>
+                  <Text style={styles.buttonText}>Sign In</Text>
+                  <ArrowRight color="#fff" size={20} style={styles.buttonIcon} />
+                </>
+              )}
+            </Pressable>
+
+            <View style={styles.footer}>
+              <Text style={styles.footerText}>New to LinkUp?</Text>
+              <Pressable onPress={() => onNavigate('Register')}>
+                <Text style={styles.linkText}>Create an Account</Text>
+              </Pressable>
+            </View>
+          </View>
         </View>
-
-        <View style={styles.inputContainer}>
-          <Text style={styles.label}>Password</Text>
-          <TextInput
-            style={[styles.input, errors.password ? styles.inputError : null]}
-            placeholder="Enter your password"
-            placeholderTextColor="#999"
-            value={password}
-            onChangeText={(text) => {
-              setPassword(text);
-              if (errors.password) setErrors({ ...errors, password: undefined });
-            }}
-            secureTextEntry={true}
-            editable={!loading}
-          />
-          {errors.password ? <Text style={styles.errorText}>{errors.password}</Text> : null}
-        </View>
-
-        <Pressable
-          style={[styles.button, loading ? styles.buttonDisabled : null]}
-          onPress={handleLogin}
-        >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.buttonText}>Sign In</Text>
-          )}
-        </Pressable>
-
-        <Pressable style={styles.link} onPress={() => onNavigate('Register')}>
-          <Text style={styles.linkText}>
-            Don't have an account? <Text style={styles.linkTextBold}>Sign Up</Text>
-          </Text>
-        </Pressable>
-      </View>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </TouchableWithoutFeedback>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: Theme.colors.background,
+  },
+  content: {
+    flex: 1,
+    paddingHorizontal: Theme.spacing.lg,
     justifyContent: 'center',
-    padding: 24,
-    backgroundColor: '#fff',
   },
   header: {
     alignItems: 'center',
-    marginBottom: 32,
+    marginBottom: Theme.spacing.xl,
   },
-  logo: {
-    fontSize: 42,
-    fontWeight: '800',
-    color: '#007AFF',
-    letterSpacing: -1,
+  logoContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: Theme.borderRadius.xl,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: Theme.colors.primary,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.1,
+    shadowRadius: 20,
+    elevation: 5,
+    marginBottom: Theme.spacing.md,
+  },
+  logoText: {
+    fontSize: 32,
+    fontFamily: Theme.fonts.display,
+    color: Theme.colors.text,
+    letterSpacing: -0.5,
   },
   tagline: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 4,
+    fontSize: 15,
+    fontFamily: Theme.fonts.regular,
+    color: Theme.colors.textSecondary,
+    textAlign: 'center',
+    marginTop: Theme.spacing.xs,
   },
   form: {
-    backgroundColor: '#fff',
+    backgroundColor: Theme.colors.surface,
+    padding: Theme.spacing.lg,
+    borderRadius: Theme.borderRadius.xl,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.03,
+    shadowRadius: 10,
+    elevation: 2,
   },
   title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#1a1a1a',
-    marginBottom: 8,
+    fontSize: 24,
+    fontFamily: Theme.fonts.bold,
+    color: Theme.colors.text,
+    marginBottom: Theme.spacing.xs,
   },
   subtitle: {
-    fontSize: 16,
-    color: '#666',
-    marginBottom: 24,
+    fontSize: 14,
+    fontFamily: Theme.fonts.regular,
+    color: Theme.colors.textSecondary,
+    marginBottom: Theme.spacing.lg,
+  },
+  inputWrapper: {
+    marginBottom: Theme.spacing.md,
   },
   inputContainer: {
-    marginBottom: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Theme.colors.background,
+    borderWidth: 1,
+    borderColor: Theme.colors.border,
+    borderRadius: Theme.borderRadius.md,
+    paddingHorizontal: Theme.spacing.md,
+    height: 56,
   },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
+  inputIcon: {
+    marginRight: Theme.spacing.sm,
   },
   input: {
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-    borderRadius: 12,
-    padding: 16,
+    flex: 1,
     fontSize: 16,
-    backgroundColor: '#fafafa',
-    color: '#1a1a1a',
+    fontFamily: Theme.fonts.regular,
+    color: Theme.colors.text,
   },
   inputError: {
-    borderColor: '#FF3B30',
-    backgroundColor: '#fff5f5',
+    borderColor: Theme.colors.error,
+    backgroundColor: '#FFF1F2',
   },
   errorText: {
-    color: '#FF3B30',
     fontSize: 12,
-    marginTop: 4,
+    fontFamily: Theme.fonts.regular,
+    color: Theme.colors.error,
+    marginTop: Theme.spacing.xs,
     marginLeft: 4,
   },
   button: {
-    backgroundColor: '#007AFF',
-    padding: 16,
-    borderRadius: 12,
+    flexDirection: 'row',
+    backgroundColor: Theme.colors.primary,
+    height: 56,
+    borderRadius: Theme.borderRadius.md,
+    justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 8,
-    shadowColor: '#007AFF',
+    marginTop: Theme.spacing.sm,
+    shadowColor: Theme.colors.primary,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 4,
   },
   buttonDisabled: {
-    opacity: 0.7,
+    opacity: 0.8,
   },
   buttonText: {
     color: '#fff',
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: Theme.fonts.bold,
   },
-  link: {
-    marginTop: 24,
+  buttonIcon: {
+    marginLeft: Theme.spacing.sm,
+  },
+  footer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
     alignItems: 'center',
+    marginTop: Theme.spacing.xl,
+  },
+  footerText: {
+    fontSize: 14,
+    fontFamily: Theme.fonts.regular,
+    color: Theme.colors.textSecondary,
+    marginRight: 4,
   },
   linkText: {
-    color: '#666',
     fontSize: 14,
-  },
-  linkTextBold: {
-    color: '#007AFF',
-    fontWeight: '600',
+    fontFamily: Theme.fonts.bold,
+    color: Theme.colors.primary,
   },
 });
+

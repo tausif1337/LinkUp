@@ -11,12 +11,18 @@ import {
   Image,
   KeyboardAvoidingView,
   Platform,
+  Dimensions,
+  SafeAreaView,
 } from 'react-native';
 import { User, signOut, updateProfile } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { Camera, Edit2, Shield, Bell, HelpCircle, ChevronRight, ArrowLeft, LogOut, Check, X, User as UserIcon } from 'lucide-react-native';
 import { auth, db, storage } from '../config/firebase';
-import { launchImageLibrary, launchCamera, ImagePickerResponse, Asset } from 'react-native-image-picker';
+import * as ImagePicker from 'expo-image-picker';
+import { Theme } from '../theme/Theme';
+
+const { width } = Dimensions.get('window');
 
 type Props = {
   user: User;
@@ -35,21 +41,21 @@ export default function ProfileScreen({ user, onNavigate }: Props) {
   const [saving, setSaving] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  
+
   const [profile, setProfile] = useState<UserProfile>({
     displayName: user.displayName || '',
     bio: '',
     photoURL: user.photoURL || '',
     createdAt: '',
   });
-  
+
   const [editedProfile, setEditedProfile] = useState<UserProfile>({
     displayName: user.displayName || '',
     bio: '',
     photoURL: user.photoURL || '',
     createdAt: '',
   });
-  
+
   const [errors, setErrors] = useState<{ displayName?: string; bio?: string }>({});
 
   useEffect(() => {
@@ -61,79 +67,40 @@ export default function ProfileScreen({ user, onNavigate }: Props) {
       setIsInitializing(false);
       return;
     }
-    
+
     setIsInitializing(true);
-    
-    // Create a timeout promise that rejects after 10 seconds
-    const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Request timeout - network may be slow')), 10000)
-    );
-    
     try {
       const userDocRef = doc(db, 'users', user.uid);
-      
-      // Race between Firestore request and timeout
-      const userDoc = await Promise.race([
-        getDoc(userDocRef),
-        timeoutPromise
-      ]) as any;
-      
+      const userDoc = await getDoc(userDocRef);
+
       if (userDoc.exists()) {
         const data = userDoc.data() as UserProfile;
-        setProfile({
+        const profileData = {
           displayName: data.displayName || user.displayName || '',
           bio: data.bio || '',
           photoURL: data.photoURL || user.photoURL || '',
           createdAt: data.createdAt || '',
-        });
-        setEditedProfile({
-          displayName: data.displayName || user.displayName || '',
-          bio: data.bio || '',
-          photoURL: data.photoURL || user.photoURL || '',
-          createdAt: data.createdAt || '',
-        });
+        };
+        setProfile(profileData);
+        setEditedProfile(profileData);
       } else {
-        // Create initial profile document
         const initialProfile: UserProfile = {
           displayName: user.displayName || '',
           bio: '',
           photoURL: user.photoURL || '',
           createdAt: new Date().toISOString(),
         };
-        await setDoc(userDocRef, initialProfile);
+        try {
+          await setDoc(userDocRef, initialProfile);
+        } catch (e) {
+          console.warn('Could not create initial profile doc:', e);
+        }
         setProfile(initialProfile);
         setEditedProfile(initialProfile);
       }
     } catch (error: any) {
-      console.error('Error loading profile:', error);
-      // Show error but allow user to continue with default profile
-      const errorMessage = error?.message || '';
-      const errorCode = error?.code || '';
-      
-      // Check for various offline error patterns
-      const isOfflineError = 
-        errorCode === 'unavailable' || 
-        errorCode === 'failed-precondition' ||
-        errorMessage.includes('offline') ||
-        errorMessage.includes('client is offline') ||
-        errorMessage.includes('network') ||
-        errorCode.includes('network');
-      
-      const message = isOfflineError 
-        ? 'Unable to connect to database. Your profile will be available when connection is restored.'
-        : 'Failed to load profile data. Please try again later.';
-      
-      // Set default profile so loading screen disappears
-      const defaultProfile: UserProfile = {
-        displayName: user.displayName || '',
-        bio: '',
-        photoURL: user.photoURL || '',
-        createdAt: new Date().toISOString(),
-      };
-      setProfile(defaultProfile);
-      setEditedProfile(defaultProfile);
-      
-      Alert.alert('Notice', message);
+      console.warn('Notice loading profile:', error);
+      Alert.alert('Database Notice', 'Failed to load profile data.');
     } finally {
       setIsInitializing(false);
     }
@@ -141,15 +108,12 @@ export default function ProfileScreen({ user, onNavigate }: Props) {
 
   const validateForm = () => {
     const newErrors: { displayName?: string; bio?: string } = {};
-
     if (editedProfile.displayName.trim().length > 0 && editedProfile.displayName.trim().length < 2) {
       newErrors.displayName = 'Name must be at least 2 characters';
     }
-
     if (editedProfile.bio.length > 500) {
       newErrors.bio = 'Bio must be less than 500 characters';
     }
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -165,22 +129,19 @@ export default function ProfileScreen({ user, onNavigate }: Props) {
         ...editedProfile,
         updatedAt: new Date().toISOString(),
       };
-      
       await setDoc(userDocRef, updatedProfile, { merge: true });
-      
-      // Update Firebase Auth profile if display name changed
+
       if (editedProfile.displayName !== user.displayName) {
         await updateProfile(user, {
           displayName: editedProfile.displayName,
           photoURL: editedProfile.photoURL || null,
         });
       }
-      
+
       setProfile(editedProfile);
       setIsEditing(false);
       Alert.alert('Success', 'Profile updated successfully!');
-    } catch (error) {
-      console.error('Error saving profile:', error);
+    } catch (error: any) {
       Alert.alert('Error', 'Failed to save profile. Please try again.');
     } finally {
       setSaving(false);
@@ -193,557 +154,537 @@ export default function ProfileScreen({ user, onNavigate }: Props) {
     setIsEditing(false);
   };
 
-  const uploadImageToStorage = async (imageAsset: Asset): Promise<string | null> => {
-    if (!user.uid || !imageAsset.uri) return null;
-
-    try {
-      const response = await fetch(imageAsset.uri);
-      const blob = await response.blob();
-      
-      const filename = `profile_${user.uid}_${Date.now()}.jpg`;
-      const storageRef = ref(storage, `profile_images/${user.uid}/${filename}`);
-      
-      await uploadBytes(storageRef, blob);
-      const downloadURL = await getDownloadURL(storageRef);
-      
-      return downloadURL;
-    } catch (error) {
-      console.error('Error uploading image:', error);
-      throw error;
-    }
-  };
-
   const handleImagePicker = async (useCamera: boolean = false) => {
-    const options = {
-      mediaType: 'photo' as const,
-      includeBase64: false,
-      maxHeight: 800,
-      maxWidth: 800,
-      quality: 0.8 as const,
-    };
-
     try {
-      const result: ImagePickerResponse = useCamera 
-        ? await launchCamera(options)
-        : await launchImageLibrary(options);
+      const permissionResult = useCamera
+        ? await ImagePicker.requestCameraPermissionsAsync()
+        : await ImagePicker.requestMediaLibraryPermissionsAsync();
 
-      if (result.didCancel) return;
-      
-      if (result.errorCode) {
-        Alert.alert('Error', result.errorMessage || 'Failed to select image');
+      if (permissionResult.granted === false) {
+        Alert.alert('Permission Required', 'You need to allow access to change your photo.');
         return;
       }
 
-      if (result.assets && result.assets[0]) {
+      const result = useCamera
+        ? await ImagePicker.launchCameraAsync({ allowsEditing: true, aspect: [1, 1], quality: 0.8 })
+        : await ImagePicker.launchImageLibraryAsync({ allowsEditing: true, aspect: [1, 1], quality: 0.8 });
+
+      if (!result.canceled && result.assets && result.assets[0]) {
         const imageAsset = result.assets[0];
-        
         setUploadingImage(true);
         try {
-          const downloadURL = await uploadImageToStorage(imageAsset);
+          const response = await fetch(imageAsset.uri);
+          const blob = await response.blob();
+          const filename = `profile_${user.uid}_${Date.now()}.jpg`;
+          const storageRef = ref(storage, `profile_images/${user.uid}/${filename}`);
+          await uploadBytes(storageRef, blob);
+          const downloadURL = await getDownloadURL(storageRef);
+
           if (downloadURL) {
             setEditedProfile(prev => ({ ...prev, photoURL: downloadURL }));
-            if (!isEditing) {
-              setIsEditing(true);
-            }
+            if (!isEditing) setIsEditing(true);
           }
         } catch (error) {
-          Alert.alert('Error', 'Failed to upload image. Please try again.');
+          Alert.alert('Error', 'Failed to upload image.');
         } finally {
           setUploadingImage(false);
         }
       }
     } catch (error) {
-      console.error('Image picker error:', error);
-      Alert.alert('Error', 'Failed to open image picker');
+      Alert.alert('Error', 'An error occurred.');
     }
   };
 
   const showImagePickerOptions = () => {
-    Alert.alert(
-      'Select Profile Photo',
-      'Choose an option',
-      [
-        { text: 'Camera', onPress: () => handleImagePicker(true) },
-        { text: 'Gallery', onPress: () => handleImagePicker(false) },
-        { text: 'Cancel', style: 'cancel' },
-      ]
-    );
+    Alert.alert('Select Photo', 'Choose an option', [
+      { text: 'Take Photo', onPress: () => handleImagePicker(true) },
+      { text: 'Choose from Gallery', onPress: () => handleImagePicker(false) },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
   };
 
   const handleLogout = async () => {
     if (saving) return;
-    setSaving(true);
     try {
       await signOut(auth);
     } catch (error) {
-      Alert.alert('Error', 'Failed to sign out. Please try again.');
-    } finally {
-      setSaving(false);
+      Alert.alert('Error', 'Failed to sign out.');
     }
-  };
-
-  const handleBackToFeed = () => {
-    onNavigate('Feed');
   };
 
   if (isInitializing) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#007AFF" />
-        <Text style={styles.loadingText}>Loading profile...</Text>
+        <ActivityIndicator size="large" color={Theme.colors.primary} />
+        <Text style={styles.loadingText}>Loading Profile...</Text>
       </View>
     );
   }
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
-    >
-      <View style={styles.header}>
-        <Pressable onPress={handleBackToFeed} style={styles.backButton}>
-          <Text style={styles.backButtonText}>← Back</Text>
-        </Pressable>
-        <Text style={styles.headerTitle}>Profile</Text>
-        <Pressable
-          style={[styles.logoutButton, saving ? styles.buttonDisabled : null]}
-          onPress={handleLogout}
-        >
-          {saving ? (
-            <ActivityIndicator color="#FF3B30" size="small" />
-          ) : (
-            <Text style={styles.logoutText}>Logout</Text>
-          )}
-        </Pressable>
-      </View>
-
-      <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
-        {/* Profile Photo Section */}
-        <View style={styles.photoSection}>
-          <Pressable onPress={showImagePickerOptions} disabled={uploadingImage}>
-            <View style={styles.photoContainer}>
-              {uploadingImage ? (
-                <View style={styles.uploadingOverlay}>
-                  <ActivityIndicator size="large" color="#fff" />
-                </View>
-              ) : editedProfile.photoURL ? (
-                <Image source={{ uri: editedProfile.photoURL }} style={styles.profilePhoto} />
-              ) : (
-                <View style={styles.placeholderPhoto}>
-                  <Text style={styles.placeholderText}>
-                    {editedProfile.displayName ? editedProfile.displayName[0].toUpperCase() : user.email?.[0].toUpperCase()}
-                  </Text>
-                </View>
-              )}
-              <View style={styles.editPhotoBadge}>
-                <Text style={styles.editPhotoText}>📷</Text>
-              </View>
-            </View>
+    <SafeAreaView style={styles.container}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}
+      >
+        <View style={styles.header}>
+          <Pressable onPress={() => onNavigate('Feed')} style={styles.headerButton}>
+            <ArrowLeft color={Theme.colors.text} size={24} />
           </Pressable>
-          <Text style={styles.photoHint}>Tap to change photo</Text>
+          <Text style={styles.headerTitle}>Profile Settings</Text>
+          <Pressable onPress={handleLogout} style={styles.logoutBtn}>
+            <LogOut color={Theme.colors.error} size={20} />
+          </Pressable>
         </View>
 
-        {/* User Info Card */}
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>User Information</Text>
-            {!isEditing ? (
-              <Pressable onPress={() => setIsEditing(true)} style={styles.editButton}>
-                <Text style={styles.editButtonText}>Edit</Text>
-              </Pressable>
-            ) : null}
-          </View>
-
-          {isEditing ? (
-            <View style={styles.editForm}>
-              <View style={styles.inputContainer}>
-                <Text style={styles.label}>Display Name</Text>
-                <TextInput
-                  style={[styles.input, errors.displayName ? styles.inputError : null]}
-                  placeholder="Enter your name"
-                  placeholderTextColor="#999"
-                  value={editedProfile.displayName}
-                  onChangeText={(text) => {
-                    setEditedProfile(prev => ({ ...prev, displayName: text }));
-                    if (errors.displayName) setErrors({ ...errors, displayName: undefined });
-                  }}
-                  editable={!saving}
-                />
-                {errors.displayName ? <Text style={styles.errorText}>{errors.displayName}</Text> : null}
+        <ScrollView
+          style={styles.content}
+          contentContainerStyle={styles.contentContainer}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.profileHero}>
+            <Pressable onPress={showImagePickerOptions} disabled={uploadingImage}>
+              <View style={styles.photoWrapper}>
+                {uploadingImage ? (
+                  <View style={styles.photoOverlay}>
+                    <ActivityIndicator color="#fff" />
+                  </View>
+                ) : editedProfile.photoURL ? (
+                  <Image source={{ uri: editedProfile.photoURL }} style={styles.photo} />
+                ) : (
+                  <View style={styles.photoPlaceholder}>
+                    <UserIcon color="#fff" size={40} />
+                  </View>
+                )}
+                <View style={styles.photoBadge}>
+                  <Camera color="#fff" size={16} />
+                </View>
               </View>
+            </Pressable>
 
-              <View style={styles.inputContainer}>
-                <Text style={styles.label}>Bio</Text>
-                <TextInput
-                  style={[styles.textArea, errors.bio ? styles.inputError : null]}
-                  placeholder="Tell us about yourself..."
-                  placeholderTextColor="#999"
-                  value={editedProfile.bio}
-                  onChangeText={(text) => {
-                    setEditedProfile(prev => ({ ...prev, bio: text }));
-                    if (errors.bio) setErrors({ ...errors, bio: undefined });
-                  }}
-                  multiline
-                  numberOfLines={4}
-                  maxLength={500}
-                  editable={!saving}
-                />
-                <Text style={styles.characterCount}>{editedProfile.bio.length}/500</Text>
-                {errors.bio ? <Text style={styles.errorText}>{errors.bio}</Text> : null}
+            <Text style={styles.profileName}>{profile.displayName || 'Unnamed User'}</Text>
+            <Text style={styles.profileEmail}>{user.email}</Text>
+
+            <View style={styles.statsRow}>
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>Active</Text>
+                <Text style={styles.statLabel}>Status</Text>
               </View>
-
-              <View style={styles.buttonRow}>
-                <Pressable
-                  style={[styles.cancelButton, saving ? styles.buttonDisabled : null]}
-                  onPress={handleCancelEdit}
-                  disabled={saving}
-                >
-                  <Text style={styles.cancelButtonText}>Cancel</Text>
-                </Pressable>
-                <Pressable
-                  style={[styles.saveButton, saving ? styles.buttonDisabled : null]}
-                  onPress={handleSaveProfile}
-                  disabled={saving}
-                >
-                  {saving ? (
-                    <ActivityIndicator color="#fff" size="small" />
-                  ) : (
-                    <Text style={styles.saveButtonText}>Save Changes</Text>
-                  )}
-                </Pressable>
+              <View style={styles.statDivider} />
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>
+                  {profile.createdAt ? new Date(profile.createdAt).getFullYear() : '2024'}
+                </Text>
+                <Text style={styles.statLabel}>Joined</Text>
               </View>
             </View>
-          ) : (
-            <View style={styles.infoDisplay}>
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Name</Text>
-                <Text style={styles.infoValue}>
-                  {profile.displayName || 'Not set'}
-                </Text>
-              </View>
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Email</Text>
-                <Text style={styles.infoValue}>{user.email}</Text>
-              </View>
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Bio</Text>
-                <Text style={styles.bioText}>
-                  {profile.bio || 'No bio added yet. Tap Edit to add one.'}
-                </Text>
-              </View>
-              {profile.createdAt && (
-                <View style={styles.infoRow}>
-                  <Text style={styles.infoLabel}>Member Since</Text>
-                  <Text style={styles.infoValue}>
-                    {new Date(profile.createdAt).toLocaleDateString()}
-                  </Text>
+          </View>
+
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Personal Details</Text>
+              {!isEditing && (
+                <Pressable onPress={() => setIsEditing(true)} style={styles.editBtn}>
+                  <Edit2 color={Theme.colors.primary} size={16} />
+                  <Text style={styles.editBtnText}>Edit</Text>
+                </Pressable>
+              )}
+            </View>
+
+            <View style={styles.card}>
+              {isEditing ? (
+                <View style={styles.editForm}>
+                  <View style={styles.field}>
+                    <Text style={styles.fieldLabel}>Display Name</Text>
+                    <TextInput
+                      style={[styles.input, errors.displayName && styles.inputError]}
+                      value={editedProfile.displayName}
+                      onChangeText={(t) => setEditedProfile(p => ({ ...p, displayName: t }))}
+                      placeholder="Your name"
+                    />
+                    {errors.displayName && <Text style={styles.errorHint}>{errors.displayName}</Text>}
+                  </View>
+
+                  <View style={styles.field}>
+                    <Text style={styles.fieldLabel}>Bio</Text>
+                    <TextInput
+                      style={[styles.textArea, errors.bio && styles.inputError]}
+                      value={editedProfile.bio}
+                      onChangeText={(t) => setEditedProfile(p => ({ ...p, bio: t }))}
+                      placeholder="Tell us about yourself"
+                      multiline
+                      numberOfLines={4}
+                    />
+                    {errors.bio && <Text style={styles.errorHint}>{errors.bio}</Text>}
+                  </View>
+
+                  <View style={styles.actionGrid}>
+                    <Pressable onPress={handleCancelEdit} style={styles.cancelBtn}>
+                      <X color={Theme.colors.textSecondary} size={20} />
+                      <Text style={styles.cancelBtnText}>Cancel</Text>
+                    </Pressable>
+                    <Pressable onPress={handleSaveProfile} style={styles.saveBtn} disabled={saving}>
+                      {saving ? (
+                        <ActivityIndicator color="#fff" />
+                      ) : (
+                        <>
+                          <Check color="#fff" size={20} />
+                          <Text style={styles.saveBtnText}>Save</Text>
+                        </>
+                      )}
+                    </Pressable>
+                  </View>
+                </View>
+              ) : (
+                <View style={styles.displaySection}>
+                  <View style={styles.displayItem}>
+                    <Text style={styles.displayLabel}>About You</Text>
+                    <Text style={styles.displayText}>
+                      {profile.bio || "Write something about yourself to complete your profile."}
+                    </Text>
+                  </View>
                 </View>
               )}
             </View>
-          )}
-        </View>
+          </View>
 
-        {/* Settings Card */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Settings</Text>
-          <View style={styles.settingsList}>
-            <Pressable style={styles.settingItem}>
-              <Text style={styles.settingText}>Notifications</Text>
-              <Text style={styles.settingArrow}>›</Text>
+          <Text style={[styles.sectionTitle, { marginLeft: Theme.spacing.md, marginBottom: Theme.spacing.sm }]}>Preferences</Text>
+          <View style={styles.listCard}>
+            <Pressable style={styles.listItem}>
+              <View style={[styles.listIconBg, { backgroundColor: '#EEF2FF' }]}>
+                <Bell color={Theme.colors.primary} size={20} />
+              </View>
+              <Text style={styles.listText}>Notifications</Text>
+              <ChevronRight color={Theme.colors.textMuted} size={20} />
             </Pressable>
-            <Pressable style={styles.settingItem}>
-              <Text style={styles.settingText}>Privacy</Text>
-              <Text style={styles.settingArrow}>›</Text>
+            <Pressable style={styles.listItem}>
+              <View style={[styles.listIconBg, { backgroundColor: '#ECFDF5' }]}>
+                <Shield color="#10B981" size={20} />
+              </View>
+              <Text style={styles.listText}>Privacy & Security</Text>
+              <ChevronRight color={Theme.colors.textMuted} size={20} />
             </Pressable>
-            <Pressable style={styles.settingItem}>
-              <Text style={styles.settingText}>Help & Support</Text>
-              <Text style={styles.settingArrow}>›</Text>
+            <Pressable style={[styles.listItem, { borderBottomWidth: 0 }]}>
+              <View style={[styles.listIconBg, { backgroundColor: '#FFF7ED' }]}>
+                <HelpCircle color="#F59E0B" size={20} />
+              </View>
+              <Text style={styles.listText}>Help Center</Text>
+              <ChevronRight color={Theme.colors.textMuted} size={20} />
             </Pressable>
           </View>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: Theme.colors.background,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
+    backgroundColor: Theme.colors.background,
   },
   loadingText: {
-    marginTop: 12,
+    marginTop: Theme.spacing.md,
     fontSize: 16,
-    color: '#666',
+    fontFamily: Theme.fonts.medium,
+    color: Theme.colors.textSecondary,
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
-    paddingTop: 60,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-  },
-  backButton: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  backButtonText: {
-    fontSize: 16,
-    color: '#007AFF',
-    fontWeight: '600',
+    justifyContent: 'space-between',
+    paddingHorizontal: Theme.spacing.lg,
+    paddingVertical: Theme.spacing.md,
+    backgroundColor: Theme.colors.surface,
   },
   headerTitle: {
     fontSize: 18,
-    fontWeight: '700',
-    color: '#1a1a1a',
+    fontFamily: Theme.fonts.bold,
+    color: Theme.colors.text,
   },
-  logoutButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#FF3B30',
+  headerButton: {
+    width: 40,
+    height: 40,
+    borderRadius: Theme.borderRadius.md,
+    backgroundColor: Theme.colors.background,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  buttonDisabled: {
-    opacity: 0.7,
-  },
-  logoutText: {
-    color: '#FF3B30',
-    fontSize: 14,
-    fontWeight: '600',
+  logoutBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: Theme.borderRadius.md,
+    backgroundColor: '#FFF1F2',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   content: {
     flex: 1,
   },
   contentContainer: {
-    padding: 16,
-    paddingBottom: 32,
+    padding: Theme.spacing.lg,
   },
-  photoSection: {
+  profileHero: {
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: Theme.spacing.xl,
   },
-  photoContainer: {
+  photoWrapper: {
     position: 'relative',
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    overflow: 'hidden',
+    marginBottom: Theme.spacing.md,
   },
-  profilePhoto: {
+  photo: {
     width: 120,
     height: 120,
     borderRadius: 60,
+    borderWidth: 4,
+    borderColor: '#fff',
   },
-  placeholderPhoto: {
+  photoPlaceholder: {
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: '#007AFF',
+    backgroundColor: Theme.colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 4,
+    borderColor: '#fff',
   },
-  placeholderText: {
-    fontSize: 48,
-    fontWeight: '700',
-    color: '#fff',
-  },
-  uploadingOverlay: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  editPhotoBadge: {
+  photoOverlay: {
     position: 'absolute',
-    bottom: 0,
-    right: 0,
-    backgroundColor: '#007AFF',
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1,
+  },
+  photoBadge: {
+    position: 'absolute',
+    bottom: 5,
+    right: 5,
+    backgroundColor: Theme.colors.primary,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 3,
-    borderColor: '#f5f5f5',
+    borderColor: '#fff',
   },
-  editPhotoText: {
-    fontSize: 16,
+  profileName: {
+    fontSize: 24,
+    fontFamily: Theme.fonts.display,
+    color: Theme.colors.text,
+    marginBottom: 4,
   },
-  photoHint: {
-    marginTop: 8,
+  profileEmail: {
     fontSize: 14,
-    color: '#666',
+    fontFamily: Theme.fonts.regular,
+    color: Theme.colors.textSecondary,
+    marginBottom: Theme.spacing.lg,
   },
-  card: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 16,
+  statsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Theme.colors.surface,
+    paddingVertical: Theme.spacing.md,
+    paddingHorizontal: Theme.spacing.xl,
+    borderRadius: Theme.borderRadius.xl,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
   },
-  cardHeader: {
+  statItem: {
+    alignItems: 'center',
+    paddingHorizontal: Theme.spacing.md,
+  },
+  statDivider: {
+    width: 1,
+    height: 30,
+    backgroundColor: Theme.colors.border,
+  },
+  statValue: {
+    fontSize: 16,
+    fontFamily: Theme.fonts.bold,
+    color: Theme.colors.text,
+  },
+  statLabel: {
+    fontSize: 12,
+    fontFamily: Theme.fonts.regular,
+    color: Theme.colors.textMuted,
+    marginTop: 2,
+  },
+  section: {
+    marginBottom: Theme.spacing.xl,
+  },
+  sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: Theme.spacing.md,
+    paddingHorizontal: Theme.spacing.xs,
   },
-  cardTitle: {
+  sectionTitle: {
     fontSize: 18,
-    fontWeight: '700',
-    color: '#1a1a1a',
+    fontFamily: Theme.fonts.bold,
+    color: Theme.colors.text,
   },
-  editButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: '#007AFF',
-    borderRadius: 8,
+  editBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
-  editButtonText: {
-    color: '#fff',
+  editBtnText: {
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: Theme.fonts.bold,
+    color: Theme.colors.primary,
   },
-  infoDisplay: {
-    gap: 16,
-  },
-  infoRow: {
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-    paddingBottom: 12,
-  },
-  infoLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#666',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 4,
-  },
-  infoValue: {
-    fontSize: 16,
-    color: '#1a1a1a',
-    fontWeight: '500',
-  },
-  bioText: {
-    fontSize: 16,
-    color: '#1a1a1a',
-    lineHeight: 22,
+  card: {
+    backgroundColor: Theme.colors.surface,
+    borderRadius: Theme.borderRadius.xl,
+    padding: Theme.spacing.lg,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.03,
+    shadowRadius: 10,
+    elevation: 2,
   },
   editForm: {
-    gap: 16,
+    gap: Theme.spacing.md,
   },
-  inputContainer: {
-    marginBottom: 8,
+  field: {
+    gap: Theme.spacing.xs,
   },
-  label: {
+  fieldLabel: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
+    fontFamily: Theme.fonts.medium,
+    color: Theme.colors.textSecondary,
   },
   input: {
+    backgroundColor: Theme.colors.background,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
-    borderRadius: 12,
-    padding: 16,
-    fontSize: 16,
-    backgroundColor: '#fafafa',
-    color: '#1a1a1a',
+    borderColor: Theme.colors.border,
+    borderRadius: Theme.borderRadius.md,
+    padding: 14,
+    fontSize: 15,
+    fontFamily: Theme.fonts.regular,
+    color: Theme.colors.text,
   },
   textArea: {
+    backgroundColor: Theme.colors.background,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
-    borderRadius: 12,
-    padding: 16,
-    fontSize: 16,
-    backgroundColor: '#fafafa',
-    color: '#1a1a1a',
-    height: 100,
+    borderColor: Theme.colors.border,
+    borderRadius: Theme.borderRadius.md,
+    padding: 14,
+    fontSize: 15,
+    fontFamily: Theme.fonts.regular,
+    color: Theme.colors.text,
+    height: 120,
     textAlignVertical: 'top',
   },
   inputError: {
-    borderColor: '#FF3B30',
-    backgroundColor: '#fff5f5',
+    borderColor: Theme.colors.error,
   },
-  errorText: {
-    color: '#FF3B30',
+  errorHint: {
     fontSize: 12,
-    marginTop: 4,
-    marginLeft: 4,
+    fontFamily: Theme.fonts.regular,
+    color: Theme.colors.error,
+    marginTop: 2,
   },
-  characterCount: {
-    fontSize: 12,
-    color: '#999',
-    textAlign: 'right',
-    marginTop: 4,
+  displaySection: {
+    minHeight: 40,
   },
-  buttonRow: {
+  displayItem: {
+    marginBottom: Theme.spacing.md,
+  },
+  displayLabel: {
+    fontSize: 13,
+    fontFamily: Theme.fonts.bold,
+    color: Theme.colors.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: Theme.spacing.xs,
+  },
+  displayText: {
+    fontSize: 15,
+    fontFamily: Theme.fonts.regular,
+    color: Theme.colors.text,
+    lineHeight: 22,
+  },
+  actionGrid: {
     flexDirection: 'row',
-    gap: 12,
-    marginTop: 8,
+    gap: Theme.spacing.md,
+    marginTop: Theme.spacing.sm,
   },
-  cancelButton: {
+  cancelBtn: {
     flex: 1,
-    padding: 16,
-    borderRadius: 12,
+    flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f0f0f0',
+    justifyContent: 'center',
+    padding: 14,
+    borderRadius: Theme.borderRadius.md,
+    backgroundColor: Theme.colors.background,
+    gap: 8,
   },
-  cancelButtonText: {
-    color: '#666',
-    fontSize: 16,
-    fontWeight: '600',
+  cancelBtnText: {
+    fontSize: 15,
+    fontFamily: Theme.fonts.bold,
+    color: Theme.colors.textSecondary,
   },
-  saveButton: {
-    flex: 1,
-    backgroundColor: '#007AFF',
-    padding: 16,
-    borderRadius: 12,
+  saveBtn: {
+    flex: 2,
+    flexDirection: 'row',
     alignItems: 'center',
-    shadowColor: '#007AFF',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
+    justifyContent: 'center',
+    padding: 14,
+    borderRadius: Theme.borderRadius.md,
+    backgroundColor: Theme.colors.primary,
+    gap: 8,
   },
-  saveButtonText: {
+  saveBtnText: {
+    fontSize: 15,
+    fontFamily: Theme.fonts.bold,
     color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
   },
-  settingsList: {
-    gap: 0,
+  listCard: {
+    backgroundColor: Theme.colors.surface,
+    borderRadius: Theme.borderRadius.xl,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.03,
+    shadowRadius: 10,
+    elevation: 2,
   },
-  settingItem: {
+  listItem: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 16,
+    padding: Theme.spacing.lg,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: Theme.colors.border,
   },
-  settingText: {
+  listIconBg: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: Theme.spacing.md,
+  },
+  listText: {
+    flex: 1,
     fontSize: 16,
-    color: '#1a1a1a',
-  },
-  settingArrow: {
-    fontSize: 20,
-    color: '#999',
+    fontFamily: Theme.fonts.medium,
+    color: Theme.colors.text,
   },
 });
+

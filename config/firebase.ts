@@ -1,13 +1,7 @@
-// Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
+import { initializeApp, getApps, getApp, FirebaseApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import { getFirestore, initializeFirestore, Firestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
-
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 
 const firebaseConfig = {
   apiKey: "AIzaSyDXC9WZuI8S0eZik1a7DtMR7vvQ-F9a724",
@@ -18,14 +12,21 @@ const firebaseConfig = {
   appId: "1:905624735301:web:01588ff8531e6d0ae41d2c"
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
+let app: FirebaseApp;
+let db: Firestore;
 
-// Initialize Auth
-export const auth = getAuth(app);
+if (getApps().length === 0) {
+  app = initializeApp(firebaseConfig);
+  // Initialize Firestore with long polling to prevent React Native Connection timeouts
+  db = initializeFirestore(app, {
+    experimentalForceLongPolling: true,
+  });
+} else {
+  app = getApp();
+  db = getFirestore(app);
+}
 
-// Initialize Firestore
-export const db = getFirestore(app);
+const auth = getAuth(app);
+const storage = getStorage(app);
 
-// Initialize Storage
-export const storage = getStorage(app);
+export { app, auth, db, storage };
