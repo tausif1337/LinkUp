@@ -21,6 +21,7 @@ import { Camera, Edit2, Shield, Bell, HelpCircle, ChevronRight, ArrowLeft, LogOu
 import { auth, db, storage } from '../config/firebase';
 import * as ImagePicker from 'expo-image-picker';
 import { Theme } from '../theme/Theme';
+import { pickImage, uploadImage } from '../utils/imageUtils';
 
 const { width } = Dimensions.get('window');
 
@@ -155,43 +156,23 @@ export default function ProfileScreen({ user, onNavigate }: Props) {
   };
 
   const handleImagePicker = async (useCamera: boolean = false) => {
+    const asset = await pickImage(useCamera);
+    if (!asset) return;
+
+    setUploadingImage(true);
     try {
-      const permissionResult = useCamera
-        ? await ImagePicker.requestCameraPermissionsAsync()
-        : await ImagePicker.requestMediaLibraryPermissionsAsync();
+      const filename = `profile_${user.uid}_${Date.now()}.jpg`;
+      const uploadPath = `profile_images/${user.uid}/${filename}`;
+      const downloadURL = await uploadImage(asset.base64 || '', uploadPath);
 
-      if (permissionResult.granted === false) {
-        Alert.alert('Permission Required', 'You need to allow access to change your photo.');
-        return;
-      }
-
-      const result = useCamera
-        ? await ImagePicker.launchCameraAsync({ allowsEditing: true, aspect: [1, 1], quality: 0.8 })
-        : await ImagePicker.launchImageLibraryAsync({ allowsEditing: true, aspect: [1, 1], quality: 0.8 });
-
-      if (!result.canceled && result.assets && result.assets[0]) {
-        const imageAsset = result.assets[0];
-        setUploadingImage(true);
-        try {
-          const response = await fetch(imageAsset.uri);
-          const blob = await response.blob();
-          const filename = `profile_${user.uid}_${Date.now()}.jpg`;
-          const storageRef = ref(storage, `profile_images/${user.uid}/${filename}`);
-          await uploadBytes(storageRef, blob);
-          const downloadURL = await getDownloadURL(storageRef);
-
-          if (downloadURL) {
-            setEditedProfile(prev => ({ ...prev, photoURL: downloadURL }));
-            if (!isEditing) setIsEditing(true);
-          }
-        } catch (error) {
-          Alert.alert('Error', 'Failed to upload image.');
-        } finally {
-          setUploadingImage(false);
-        }
+      if (downloadURL) {
+        setEditedProfile(prev => ({ ...prev, photoURL: downloadURL }));
+        if (!isEditing) setIsEditing(true);
       }
     } catch (error) {
-      Alert.alert('Error', 'An error occurred.');
+      Alert.alert('Error', 'Failed to upload image.');
+    } finally {
+      setUploadingImage(false);
     }
   };
 
