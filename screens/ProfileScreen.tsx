@@ -20,7 +20,7 @@ import { Camera, Edit2, Shield, Bell, HelpCircle, ChevronRight, ArrowLeft, LogOu
 import { auth, db } from '../config/firebase';
 import * as ImagePicker from 'expo-image-picker';
 import { Theme } from '../theme/Theme';
-import { pickImage } from '../utils/imageUtils';
+import { pickImage, uploadToCloudinary } from '../utils/imageUtils';
 
 const { width } = Dimensions.get('window');
 
@@ -123,24 +123,41 @@ export default function ProfileScreen({ user, onNavigate }: Props) {
 
     setSaving(true);
     try {
+      let finalPhotoURL = editedProfile.photoURL;
+
+      // Check if the photoURL is a local URI (indicating a new image was picked)
+      if (editedProfile.photoURL && (editedProfile.photoURL.startsWith('file://') || editedProfile.photoURL.startsWith('content://') || editedProfile.photoURL.startsWith('data:'))) {
+        try {
+          finalPhotoURL = await uploadToCloudinary(editedProfile.photoURL);
+        } catch (uploadError: any) {
+          Alert.alert('Upload Error', 'Failed to upload profile image to Cloudinary.');
+          setSaving(false);
+          return;
+        }
+      }
+
       const userDocRef = doc(db, 'users', user.uid);
       const updatedProfile = {
         ...editedProfile,
+        photoURL: finalPhotoURL,
         updatedAt: new Date().toISOString(),
       };
       await setDoc(userDocRef, updatedProfile, { merge: true });
 
-      if (editedProfile.displayName !== user.displayName) {
+      // Update Firebase Auth user profile
+      if (editedProfile.displayName !== user.displayName || finalPhotoURL !== user.photoURL) {
         await updateProfile(user, {
           displayName: editedProfile.displayName,
-          photoURL: editedProfile.photoURL || null,
+          photoURL: finalPhotoURL || null,
         });
       }
 
-      setProfile(editedProfile);
+      setProfile(updatedProfile);
+      setEditedProfile(updatedProfile);
       setIsEditing(false);
       Alert.alert('Success', 'Profile updated successfully!');
     } catch (error: any) {
+      console.error('Save profile error:', error);
       Alert.alert('Error', 'Failed to save profile. Please try again.');
     } finally {
       setSaving(false);
