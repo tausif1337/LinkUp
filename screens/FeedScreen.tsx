@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,16 +13,47 @@ import { signOut, User } from 'firebase/auth';
 import { LogOut, User as UserIcon, Bell, Search, PlusCircle, LayoutGrid, Users, MessageSquare, Image as ImageIcon } from 'lucide-react-native';
 import { auth, db } from '../config/firebase';
 import { Theme } from '../theme/Theme';
-import { pickImage } from '../utils/imageUtils';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { pickImage, uploadToCloudinary } from '../utils/imageUtils';
+import { collection, addDoc, serverTimestamp, query, orderBy, onSnapshot, doc, getDoc } from 'firebase/firestore';
+import { Modal, TextInput, FlatList, KeyboardAvoidingView, Platform, Image } from 'react-native';
+import { Heart, Share2, MoreVertical, X } from 'lucide-react-native';
 
 type Props = {
   user: User;
   onNavigate: (screen: 'Login' | 'Register' | 'Feed' | 'Profile') => void;
 };
 
+type Post = {
+  id: string;
+  userId: string;
+  userName: string;
+  userPhoto?: string;
+  caption: string;
+  imageUrl?: string;
+  createdAt: any;
+};
+
 export default function FeedScreen({ user, onNavigate }: Props) {
   const [loading, setLoading] = useState(false);
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [caption, setCaption] = useState('');
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+
+  // Real-time listener for posts
+  useEffect(() => {
+    const q = query(collection(db, 'posts'), orderBy('createdAt', 'desc'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const postsData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as Post[];
+      setPosts(postsData);
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   const handleLogout = async () => {
     if (loading) return;
@@ -36,13 +67,100 @@ export default function FeedScreen({ user, onNavigate }: Props) {
     }
   };
 
-  const handleNewPost = async () => {
-    // Firebase Storage upload removed
-    Alert.alert('Notice', 'Image upload functionality has been removed.');
+  const handleImagePick = async (useCamera: boolean) => {
+    const asset = await pickImage(useCamera);
+    if (asset) {
+      setSelectedImage(asset.uri);
+    }
   };
 
-  return (
-    <SafeAreaView style={styles.container}>
+  const showImagePickerOptions = () => {
+    Alert.alert('Select Photo', 'Choose an option', [
+      { text: 'Take Photo', onPress: () => handleImagePick(true) },
+      { text: 'Choose from Gallery', onPress: () => handleImagePick(false) },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  };
+
+  const handleSubmitPost = async () => {
+    if (!caption.trim() && !selectedImage) {
+      Alert.alert('Wait', 'Please add a caption or an image.');
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      let imageUrl = '';
+      if (selectedImage) {
+        imageUrl = await uploadToCloudinary(selectedImage);
+      }
+
+      await addDoc(collection(db, 'posts'), {
+        userId: user.uid,
+        userName: user.displayName || 'Anonymous',
+        userPhoto: user.photoURL || '',
+        caption: caption.trim(),
+        imageUrl: imageUrl,
+        createdAt: serverTimestamp(),
+      });
+
+      setCaption('');
+      setSelectedImage(null);
+      setIsModalVisible(false);
+      Alert.alert('Success', 'Post created successfully!');
+    } catch (error) {
+      console.error('Create post error:', error);
+      Alert.alert('Error', 'Failed to create post. Please try again.');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const renderPost = ({ item }: { item: Post }) => (
+    <View style={styles.postCard}>
+      <View style={styles.postHeader}>
+        <View style={styles.postUserInfo}>
+          <View style={styles.postAvatar}>
+            {item.userPhoto ? (
+              <Image source={{ uri: item.userPhoto }} style={styles.avatarImage} />
+            ) : (
+              <UserIcon color={Theme.colors.primary} size={20} />
+            )}
+          </View>
+          <View>
+            <Text style={styles.postUserName}>{item.userName}</Text>
+            <Text style={styles.postTime}>
+              {item.createdAt?.toDate ? new Date(item.createdAt.toDate()).toLocaleDateString() : 'Just now'}
+            </Text>
+          </View>
+        </View>
+        <Pressable>
+          <MoreVertical color={Theme.colors.textMuted} size={20} />
+        </Pressable>
+      </View>
+
+      {item.caption ? <Text style={styles.postCaption}>{item.caption}</Text> : null}
+
+      {item.imageUrl ? (
+        <Image source={{ uri: item.imageUrl }} style={styles.postImage} resizeMode="cover" />
+      ) : null}
+
+      <View style={styles.postActions}>
+        <Pressable style={styles.postAction}>
+          <Heart color={Theme.colors.textSecondary} size={22} />
+        </Pressable>
+        <Pressable style={styles.postAction}>
+          <MessageSquare color={Theme.colors.textSecondary} size={22} />
+        </Pressable>
+        <Pressable style={styles.postAction}>
+          <Share2 color={Theme.colors.textSecondary} size={22} />
+        </Pressable>
+      </View>
+    </View>
+  );
+
+  const FeedHeader = () => (
+    <View>
       <View style={styles.header}>
         <View>
           <Text style={styles.greeting}>Hello,</Text>
@@ -59,74 +177,133 @@ export default function FeedScreen({ user, onNavigate }: Props) {
             style={styles.profileAvatar}
             onPress={() => onNavigate('Profile')}
           >
-            <UserIcon color={Theme.colors.primary} size={24} />
+            {user.photoURL ? (
+              <Image source={{ uri: user.photoURL }} style={styles.headerAvatarImage} />
+            ) : (
+              <UserIcon color={Theme.colors.primary} size={24} />
+            )}
           </Pressable>
         </View>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+      <View style={styles.innerContent}>
         <View style={styles.welcomeCard}>
           <View style={styles.welcomeInfo}>
             <Text style={styles.welcomeTitle}>Your Network</Text>
             <Text style={styles.welcomeSubtitle}>Stay connected with your peers.</Text>
-            <Pressable style={styles.exploreBtn}>
-              <Text style={styles.exploreBtnText}>Explore Feed</Text>
+            <Pressable style={styles.exploreBtn} onPress={() => setIsModalVisible(true)}>
+              <Text style={styles.exploreBtnText}>Create Post</Text>
             </Pressable>
           </View>
           <LayoutGrid color={Theme.colors.primary} size={60} opacity={0.1} style={styles.bgIcon} />
         </View>
 
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Quick Actions</Text>
+          <Text style={styles.sectionTitle}>Recent Updates</Text>
         </View>
+      </View>
+    </View>
+  );
 
-        <View style={styles.actionsGrid}>
-          <Pressable
-            style={styles.actionItem}
-            onPress={handleNewPost}
-          >
-            <View style={[styles.actionIcon, { backgroundColor: '#EEF2FF' }]}>
-              <PlusCircle color={Theme.colors.primary} size={24} />
-            </View>
-            <Text style={styles.actionLabel}>New Post</Text>
-          </Pressable>
-          <Pressable style={styles.actionItem}>
-            <View style={[styles.actionIcon, { backgroundColor: '#ECFDF5' }]}>
-              <Users color="#10B981" size={24} />
-            </View>
-            <Text style={styles.actionLabel}>Contacts</Text>
-          </Pressable>
-          <Pressable style={styles.actionItem}>
-            <View style={[styles.actionIcon, { backgroundColor: '#FEF2F2' }]}>
-              <MessageSquare color="#F43F5E" size={24} />
-            </View>
-            <Text style={styles.actionLabel}>Messages</Text>
-          </Pressable>
-        </View>
+  const FeedFooter = () => (
+    <View style={styles.footer}>
+      <Pressable
+        style={styles.logoutButton}
+        onPress={handleLogout}
+        disabled={loading}
+      >
+        {loading ? (
+          <ActivityIndicator color={Theme.colors.error} size="small" />
+        ) : (
+          <>
+            <LogOut color={Theme.colors.error} size={20} />
+            <Text style={styles.logoutText}>Sign Out</Text>
+          </>
+        )}
+      </Pressable>
+    </View>
+  );
 
-        <View style={styles.statusSection}>
-          <Text style={styles.statusTitle}>System Status</Text>
-          <View style={styles.statusCard}>
-            <View style={styles.statusIndicator} />
-            <Text style={styles.statusText}>All systems operational</Text>
+  return (
+    <SafeAreaView style={styles.container}>
+      <FlatList
+        data={posts}
+        renderItem={renderPost}
+        keyExtractor={item => item.id}
+        ListHeaderComponent={FeedHeader}
+        ListFooterComponent={FeedFooter}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.listContent}
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            <ActivityIndicator size="small" color={Theme.colors.primary} style={{ marginBottom: 12 }} />
+            <Text style={styles.emptyText}>No posts yet. Be the first to share!</Text>
           </View>
-        </View>
+        }
+      />
 
-        <Pressable
-          style={styles.logoutButton}
-          onPress={handleLogout}
-          disabled={loading}
+      {/* New Post Modal */}
+      <Modal
+        visible={isModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setIsModalVisible(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalOverlay}
         >
-          {loading ? (
-            <ActivityIndicator color={Theme.colors.error} size="small" />
-          ) : (
-            <>
-              <LogOut color={Theme.colors.error} size={20} />
-              <Text style={styles.logoutText}>Sign Out</Text>
-            </>
-          )}
-        </Pressable>
-      </ScrollView>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Create New Post</Text>
+              <Pressable onPress={() => setIsModalVisible(false)} style={styles.closeBtn}>
+                <X color={Theme.colors.text} size={24} />
+              </Pressable>
+            </View>
+
+            <TextInput
+              style={styles.captionInput}
+              placeholder="What's on your mind?"
+              placeholderTextColor={Theme.colors.textMuted}
+              multiline
+              value={caption}
+              onChangeText={setCaption}
+            />
+
+            {selectedImage ? (
+              <View style={styles.selectedImageContainer}>
+                <Image source={{ uri: selectedImage }} style={styles.previewImage} />
+                <Pressable
+                  style={styles.removeImageBtn}
+                  onPress={() => setSelectedImage(null)}
+                >
+                  <X color="#fff" size={16} />
+                </Pressable>
+              </View>
+            ) : (
+              <Pressable style={styles.addImageBtn} onPress={showImagePickerOptions}>
+                <ImageIcon color={Theme.colors.primary} size={32} />
+                <Text style={styles.addImageText}>Add Photo</Text>
+              </Pressable>
+            )}
+
+            <Pressable
+              style={[
+                styles.submitBtn,
+                (!caption.trim() && !selectedImage) || isUploading ? styles.submitBtnDisabled : null
+              ]}
+              onPress={handleSubmitPost}
+              disabled={(!caption.trim() && !selectedImage) || isUploading}
+            >
+              {isUploading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.submitBtnText}>Post Now</Text>
+              )}
+            </Pressable>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -176,9 +353,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderColor: Theme.colors.primaryLight,
+    overflow: 'hidden',
   },
-  scrollContent: {
-    padding: Theme.spacing.lg,
+  listContent: {
+    paddingBottom: Theme.spacing.xl,
+  },
+  innerContent: {
+    paddingHorizontal: Theme.spacing.lg,
   },
   welcomeCard: {
     backgroundColor: Theme.colors.primary,
@@ -188,7 +369,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     overflow: 'hidden',
     position: 'relative',
-    marginBottom: Theme.spacing.xl,
+    marginVertical: Theme.spacing.xl,
   },
   welcomeInfo: {
     flex: 1,
@@ -232,67 +413,167 @@ const styles = StyleSheet.create({
     fontFamily: Theme.fonts.bold,
     color: Theme.colors.text,
   },
-  actionsGrid: {
-    flexDirection: 'row',
-    gap: Theme.spacing.md,
-    marginBottom: Theme.spacing.xl,
-  },
-  actionItem: {
-    flex: 1,
+  postCard: {
     backgroundColor: Theme.colors.surface,
-    padding: Theme.spacing.md,
-    borderRadius: Theme.borderRadius.lg,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 5,
-    elevation: 2,
+    marginBottom: Theme.spacing.md,
+    paddingVertical: Theme.spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: Theme.colors.border,
   },
-  actionIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: Theme.borderRadius.md,
+  postHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: Theme.spacing.lg,
+    marginBottom: Theme.spacing.sm,
+  },
+  postUserInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Theme.spacing.sm,
+  },
+  postAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#EEF2FF',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: Theme.spacing.sm,
+    overflow: 'hidden',
   },
-  actionLabel: {
-    fontSize: 12,
-    fontFamily: Theme.fonts.medium,
+  avatarImage: {
+    width: 36,
+    height: 36,
+  },
+  postUserName: {
+    fontSize: 15,
+    fontFamily: Theme.fonts.bold,
     color: Theme.colors.text,
   },
-  statusSection: {
-    marginBottom: Theme.spacing.xl,
+  postTime: {
+    fontSize: 12,
+    fontFamily: Theme.fonts.regular,
+    color: Theme.colors.textMuted,
   },
-  statusTitle: {
-    fontSize: 14,
-    fontFamily: Theme.fonts.bold,
-    color: Theme.colors.textSecondary,
+  postCaption: {
+    paddingHorizontal: Theme.spacing.lg,
+    fontSize: 15,
+    fontFamily: Theme.fonts.regular,
+    color: Theme.colors.text,
+    lineHeight: 22,
     marginBottom: Theme.spacing.sm,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
   },
-  statusCard: {
+  postImage: {
+    width: '100%',
+    height: 300,
+    backgroundColor: '#F1F5F9',
+  },
+  postActions: {
     flexDirection: 'row',
+    paddingHorizontal: Theme.spacing.sm,
+    marginTop: Theme.spacing.sm,
+    gap: Theme.spacing.xs,
+  },
+  postAction: {
+    padding: Theme.spacing.sm,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: Theme.colors.surface,
+    borderTopLeftRadius: Theme.borderRadius.xl,
+    borderTopRightRadius: Theme.borderRadius.xl,
+    padding: Theme.spacing.lg,
+    minHeight: '60%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#ECFDF5',
-    padding: Theme.spacing.md,
-    borderRadius: Theme.borderRadius.md,
-    borderWidth: 1,
-    borderColor: '#A7F3D0',
+    marginBottom: Theme.spacing.lg,
   },
-  statusIndicator: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#10B981',
-    marginRight: Theme.spacing.sm,
+  modalTitle: {
+    fontSize: 20,
+    fontFamily: Theme.fonts.bold,
+    color: Theme.colors.text,
   },
-  statusText: {
+  closeBtn: {
+    padding: 4,
+  },
+  captionInput: {
+    fontSize: 16,
+    fontFamily: Theme.fonts.regular,
+    color: Theme.colors.text,
+    minHeight: 100,
+    textAlignVertical: 'top',
+    marginBottom: Theme.spacing.md,
+  },
+  addImageBtn: {
+    height: 200,
+    backgroundColor: '#F8FAFC',
+    borderRadius: Theme.borderRadius.lg,
+    borderWidth: 2,
+    borderColor: '#E2E8F0',
+    borderStyle: 'dashed',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: Theme.spacing.lg,
+  },
+  addImageText: {
+    marginTop: Theme.spacing.sm,
     fontSize: 14,
     fontFamily: Theme.fonts.medium,
-    color: '#065F46',
+    color: Theme.colors.textSecondary,
+  },
+  selectedImageContainer: {
+    height: 200,
+    marginBottom: Theme.spacing.lg,
+    position: 'relative',
+  },
+  previewImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: Theme.borderRadius.lg,
+  },
+  removeImageBtn: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  submitBtn: {
+    backgroundColor: Theme.colors.primary,
+    paddingVertical: 16,
+    borderRadius: Theme.borderRadius.md,
+    alignItems: 'center',
+  },
+  submitBtnDisabled: {
+    opacity: 0.6,
+  },
+  submitBtnText: {
+    color: '#fff',
+    fontSize: 16,
+    fontFamily: Theme.fonts.bold,
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    padding: Theme.spacing.xxl,
+  },
+  emptyText: {
+    fontSize: 14,
+    fontFamily: Theme.fonts.medium,
+    color: Theme.colors.textMuted,
+  },
+  footer: {
+    padding: Theme.spacing.lg,
   },
   logoutButton: {
     flexDirection: 'row',
@@ -309,6 +590,11 @@ const styles = StyleSheet.create({
     color: Theme.colors.error,
     fontFamily: Theme.fonts.bold,
     fontSize: 15,
+  },
+  headerAvatarImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
   },
 });
 
