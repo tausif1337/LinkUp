@@ -6,16 +6,20 @@ import {
   Pressable,
   Alert,
   ActivityIndicator,
-  ScrollView,
-  SafeAreaView,
+  Modal,
+  TextInput,
+  FlatList,
+  KeyboardAvoidingView,
+  Platform,
+  Image
 } from 'react-native';
-import { signOut, User } from 'firebase/auth';
-import { LogOut, User as UserIcon, Bell, Search, PlusCircle, LayoutGrid, Users, MessageSquare, Image as ImageIcon } from 'lucide-react-native';
-import { auth, db } from '../config/firebase';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { User } from 'firebase/auth';
+import { User as UserIcon, Bell, Search, LayoutGrid, MessageSquare, Image as ImageIcon } from 'lucide-react-native';
+import { db } from '../config/firebase';
 import { Theme } from '../theme/Theme';
 import { pickImage, uploadToCloudinary } from '../utils/imageUtils';
-import { collection, addDoc, serverTimestamp, query, orderBy, onSnapshot, doc, getDoc } from 'firebase/firestore';
-import { Modal, TextInput, FlatList, KeyboardAvoidingView, Platform, Image } from 'react-native';
+import { collection, addDoc, serverTimestamp, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { Heart, Share2, MoreVertical, X } from 'lucide-react-native';
 
 type Props = {
@@ -35,7 +39,6 @@ type Post = {
 
 export default function FeedScreen({ user, onNavigate }: Props) {
   const [isInitialLoading, setIsInitialLoading] = useState(true);
-  const [loading, setLoading] = useState(false);
   const [posts, setPosts] = useState<Post[]>([]);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [caption, setCaption] = useState('');
@@ -90,17 +93,6 @@ export default function FeedScreen({ user, onNavigate }: Props) {
     setupPostsListener();
   };
 
-  const handleLogout = async () => {
-    if (loading) return;
-    setLoading(true);
-    try {
-      await signOut(auth);
-    } catch (error) {
-      Alert.alert('Error', 'Failed to sign out. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleImagePick = async (useCamera: boolean) => {
     const asset = await pickImage(useCamera);
@@ -240,24 +232,6 @@ export default function FeedScreen({ user, onNavigate }: Props) {
     </View>
   );
 
-  const FeedFooter = () => (
-    <View style={styles.footer}>
-      <Pressable
-        style={styles.logoutButton}
-        onPress={handleLogout}
-        disabled={loading}
-      >
-        {loading ? (
-          <ActivityIndicator color={Theme.colors.error} size="small" />
-        ) : (
-          <>
-            <LogOut color={Theme.colors.error} size={20} />
-            <Text style={styles.logoutText}>Sign Out</Text>
-          </>
-        )}
-      </Pressable>
-    </View>
-  );
 
   return (
     <SafeAreaView style={styles.container}>
@@ -266,7 +240,6 @@ export default function FeedScreen({ user, onNavigate }: Props) {
         renderItem={renderPost}
         keyExtractor={item => item.id}
         ListHeaderComponent={FeedHeader}
-        ListFooterComponent={FeedFooter}
         refreshing={refreshing}
         onRefresh={onRefresh}
         showsVerticalScrollIndicator={false}
@@ -612,25 +585,7 @@ const styles = StyleSheet.create({
     fontFamily: Theme.fonts.medium,
     color: Theme.colors.textMuted,
   },
-  footer: {
-    padding: Theme.spacing.lg,
-  },
-  logoutButton: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: Theme.spacing.md,
-    borderRadius: Theme.borderRadius.md,
-    borderWidth: 1,
-    borderColor: '#FEE2E2',
-    gap: Theme.spacing.sm,
-    marginTop: Theme.spacing.md,
-  },
-  logoutText: {
-    color: Theme.colors.error,
-    fontFamily: Theme.fonts.bold,
-    fontSize: 15,
-  },
+
   headerAvatarImage: {
     width: 40,
     height: 40,

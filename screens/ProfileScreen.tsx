@@ -12,17 +12,17 @@ import {
   KeyboardAvoidingView,
   Platform,
   Dimensions,
-  SafeAreaView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { User, signOut, updateProfile } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { Camera, Edit2, Shield, Bell, HelpCircle, ChevronRight, ArrowLeft, LogOut, Check, X, User as UserIcon } from 'lucide-react-native';
 import { auth, db } from '../config/firebase';
-import * as ImagePicker from 'expo-image-picker';
+
 import { Theme } from '../theme/Theme';
 import { pickImage, uploadToCloudinary } from '../utils/imageUtils';
 
-const { width } = Dimensions.get('window');
+
 
 type Props = {
   user: User;
@@ -434,16 +434,7 @@ const styles = StyleSheet.create({
     borderWidth: 4,
     borderColor: '#fff',
   },
-  photoOverlay: {
-    position: 'absolute',
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 1,
-  },
+
   photoBadge: {
     position: 'absolute',
     bottom: 5,
