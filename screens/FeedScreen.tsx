@@ -13,14 +13,12 @@ import {
   Platform,
   Image
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { User } from 'firebase/auth';
-import { User as UserIcon, Bell, Search, LayoutGrid, MessageSquare, Image as ImageIcon } from 'lucide-react-native';
+import { User as UserIcon, Bell, Search, LayoutGrid, MessageSquare, Image as ImageIcon, Heart, Share2, MoreVertical, X } from 'lucide-react-native';
 import { db } from '../config/firebase';
 import { Theme } from '../theme/Theme';
 import { pickImage, uploadToCloudinary } from '../utils/imageUtils';
 import { collection, addDoc, serverTimestamp, query, orderBy, onSnapshot } from 'firebase/firestore';
-import { Heart, Share2, MoreVertical, X } from 'lucide-react-native';
 
 type Props = {
   user: User;
@@ -234,7 +232,7 @@ export default function FeedScreen({ user, onNavigate }: Props) {
 
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <FlatList
         data={posts}
         renderItem={renderPost}
@@ -317,7 +315,7 @@ export default function FeedScreen({ user, onNavigate }: Props) {
           </View>
         </KeyboardAvoidingView>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 }
 
