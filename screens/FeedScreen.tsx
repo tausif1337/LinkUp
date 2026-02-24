@@ -34,6 +34,7 @@ type Post = {
 };
 
 export default function FeedScreen({ user, onNavigate }: Props) {
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [loading, setLoading] = useState(false);
   const [posts, setPosts] = useState<Post[]>([]);
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -41,19 +42,53 @@ export default function FeedScreen({ user, onNavigate }: Props) {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
 
+  const [refreshing, setRefreshing] = useState(false);
+  const unsubscribeRef = React.useRef<(() => void) | null>(null);
+
+  const setupPostsListener = () => {
+    // Clean up existing listener if any
+    if (unsubscribeRef.current) {
+      unsubscribeRef.current();
+    }
+
+    const q = query(collection(db, 'posts'), orderBy('createdAt', 'desc'));
+
+    const unsubscribe = onSnapshot(q,
+      (snapshot) => {
+        console.log('Posts snapshot received. Document count:', snapshot.docs.length);
+        const postsData = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        })) as Post[];
+        setPosts(postsData);
+        setIsInitialLoading(false);
+        setRefreshing(false);
+      },
+      (error) => {
+        console.error('Error fetching posts:', error);
+        setIsInitialLoading(false);
+        setRefreshing(false);
+        Alert.alert('Error', 'Failed to load posts. Please check your connection.');
+      }
+    );
+
+    unsubscribeRef.current = unsubscribe;
+  };
+
   // Real-time listener for posts
   useEffect(() => {
-    const q = query(collection(db, 'posts'), orderBy('createdAt', 'desc'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const postsData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Post[];
-      setPosts(postsData);
-    });
-
-    return () => unsubscribe();
+    setupPostsListener();
+    return () => {
+      if (unsubscribeRef.current) {
+        unsubscribeRef.current();
+      }
+    };
   }, []);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    setupPostsListener();
+  };
 
   const handleLogout = async () => {
     if (loading) return;
@@ -232,12 +267,17 @@ export default function FeedScreen({ user, onNavigate }: Props) {
         keyExtractor={item => item.id}
         ListHeaderComponent={FeedHeader}
         ListFooterComponent={FeedFooter}
+        refreshing={refreshing}
+        onRefresh={onRefresh}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <ActivityIndicator size="small" color={Theme.colors.primary} style={{ marginBottom: 12 }} />
-            <Text style={styles.emptyText}>No posts yet. Be the first to share!</Text>
+            {isInitialLoading ? (
+              <ActivityIndicator size="small" color={Theme.colors.primary} />
+            ) : (
+              <Text style={styles.emptyText}>No posts yet. Be the first to share!</Text>
+            )}
           </View>
         }
       />

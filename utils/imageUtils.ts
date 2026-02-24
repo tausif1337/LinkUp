@@ -53,9 +53,8 @@ export const uploadToCloudinary = async (uri: string) => {
         type: type,
     });
 
-    // Using unsigned upload. 'ml_default' is the standard default preset.
-    // If this fails, the user might need to create an unsigned preset in Cloudinary settings.
-    data.append('upload_preset', 'ml_default');
+    // Using Cloudinary unsigned upload
+    data.append('upload_preset', cloudinaryConfig.uploadPreset || 'ml_default');
     data.append('cloud_name', cloudinaryConfig.cloudName);
 
     try {
@@ -64,9 +63,6 @@ export const uploadToCloudinary = async (uri: string) => {
             {
                 method: 'POST',
                 body: data,
-                headers: {
-                    'Content-Type': 'multipart/form-data',
-                },
             }
         );
 
