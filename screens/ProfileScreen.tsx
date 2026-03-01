@@ -262,7 +262,7 @@ export default function ProfileScreen({ user, navigation, route }: Props) {
             <Text style={styles.profileName}>{profile.displayName || 'Unnamed User'}</Text>
             {!isOtherUser && <Text style={styles.profileEmail}>{user.email}</Text>}
 
-            {isOtherUser && (
+            {isOtherUser ? (
               <Pressable
                 style={styles.messageUserBtn}
                 onPress={() => navigation.navigate('Chat', {
@@ -276,21 +276,21 @@ export default function ProfileScreen({ user, navigation, route }: Props) {
                 <MessageCircle color="#fff" size={20} />
                 <Text style={styles.messageUserBtnText}>Message</Text>
               </Pressable>
+            ) : (
+              <View style={styles.statsRow}>
+                <View style={styles.statItem}>
+                  <Text style={styles.statValue}>124</Text>
+                  <Text style={styles.statLabel}>Posts</Text>
+                </View>
+                <View style={styles.statDivider} />
+                <View style={styles.statItem}>
+                  <Text style={styles.statValue}>
+                    {profile.createdAt ? new Date(profile.createdAt).getFullYear() : '2024'}
+                  </Text>
+                  <Text style={styles.statLabel}>Joined</Text>
+                </View>
+              </View>
             )}
-
-            <View style={styles.statsRow}>
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>Active</Text>
-                <Text style={styles.statLabel}>Status</Text>
-              </View>
-              <View style={styles.statDivider} />
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>
-                  {profile.createdAt ? new Date(profile.createdAt).getFullYear() : '2024'}
-                </Text>
-                <Text style={styles.statLabel}>Joined</Text>
-              </View>
-            </View>
           </View>
 
           <View style={styles.sectionHeader}>
@@ -527,14 +527,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Theme.colors.surface,
-    paddingVertical: Theme.spacing.md,
+    paddingVertical: Theme.spacing.lg,
     paddingHorizontal: Theme.spacing.xl,
-    borderRadius: Theme.borderRadius.xl,
+    borderRadius: Theme.borderRadius.lg,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 2,
+    shadowRadius: 15,
+    elevation: 3,
+    marginBottom: Theme.spacing.md,
   },
   statItem: {
     alignItems: 'center',

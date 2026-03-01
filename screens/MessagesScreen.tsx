@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, Pressable, Image, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, FlatList, Pressable, Image, ActivityIndicator, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { User } from 'firebase/auth';
 import { collection, query, where, orderBy, onSnapshot, limit } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { Theme } from '../theme/Theme';
-import { ChevronLeft, MessageCircle, User as UserIcon } from 'lucide-react-native';
+import { ChevronLeft, MessageCircle, User as UserIcon, Search } from 'lucide-react-native';
 
 type Chat = {
     id: string;
@@ -93,6 +93,18 @@ export default function MessagesScreen({ user, navigation }: Props) {
                 <Text style={styles.headerTitle}>Messages</Text>
             </View>
 
+            {/* Search Bar */}
+            <View style={styles.searchContainer}>
+                <View style={styles.searchBar}>
+                    <Search color={Theme.colors.textMuted} size={20} />
+                    <TextInput
+                        placeholder="Search conversations..."
+                        style={styles.searchInput}
+                        placeholderTextColor={Theme.colors.textMuted}
+                    />
+                </View>
+            </View>
+
             {loading ? (
                 <View style={styles.centerContainer}>
                     <ActivityIndicator color={Theme.colors.primary} size="large" />
@@ -133,8 +145,28 @@ const styles = StyleSheet.create({
         marginRight: Theme.spacing.sm,
     },
     headerTitle: {
-        fontSize: 20,
+        fontSize: 24,
         fontFamily: Theme.fonts.display,
+        color: Theme.colors.text,
+    },
+    searchContainer: {
+        paddingHorizontal: Theme.spacing.lg,
+        paddingBottom: Theme.spacing.md,
+        backgroundColor: Theme.colors.surface,
+    },
+    searchBar: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: Theme.colors.background,
+        borderRadius: Theme.borderRadius.md,
+        paddingHorizontal: Theme.spacing.md,
+        height: 48,
+        gap: Theme.spacing.sm,
+    },
+    searchInput: {
+        flex: 1,
+        fontFamily: Theme.fonts.regular,
+        fontSize: 16,
         color: Theme.colors.text,
     },
     listContainer: {
@@ -143,9 +175,8 @@ const styles = StyleSheet.create({
     chatCard: {
         flexDirection: 'row',
         paddingHorizontal: Theme.spacing.lg,
-        paddingVertical: Theme.spacing.md,
+        paddingVertical: Theme.spacing.lg,
         backgroundColor: Theme.colors.surface,
-        marginBottom: 1,
         alignItems: 'center',
     },
     avatarContainer: {

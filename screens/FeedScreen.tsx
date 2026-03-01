@@ -195,24 +195,24 @@ export default function FeedScreen({ user, navigation }: Props) {
   );
 
   const FeedHeader = () => (
-    <View>
+    <View style={styles.headerContainer}>
       <View style={styles.header}>
         <View>
           <Text style={styles.greeting}>Hello,</Text>
           <Text style={styles.username}>{user.displayName || user.email?.split('@')[0]}</Text>
         </View>
         <View style={styles.headerActions}>
-          <Pressable style={styles.iconButton}>
+          <Pressable style={({ pressed }) => [styles.iconButton, pressed && { opacity: 0.7 }]}>
             <Search color={Theme.colors.textSecondary} size={22} />
           </Pressable>
           <Pressable
-            style={styles.iconButton}
+            style={({ pressed }) => [styles.iconButton, pressed && { opacity: 0.7 }]}
             onPress={() => navigation.navigate('Messages')}
           >
             <Bell color={Theme.colors.textSecondary} size={22} />
           </Pressable>
           <Pressable
-            style={styles.profileAvatar}
+            style={({ pressed }) => [styles.profileAvatar, pressed && { opacity: 0.7 }]}
             onPress={() => navigation.navigate('Profile')}
           >
             {user.photoURL ? (
@@ -227,17 +227,24 @@ export default function FeedScreen({ user, navigation }: Props) {
       <View style={styles.innerContent}>
         <View style={styles.welcomeCard}>
           <View style={styles.welcomeInfo}>
-            <Text style={styles.welcomeTitle}>Your Network</Text>
-            <Text style={styles.welcomeSubtitle}>Stay connected with your peers.</Text>
-            <Pressable style={styles.exploreBtn} onPress={() => setIsModalVisible(true)}>
+            <Text style={styles.welcomeTitle}>Share your world</Text>
+            <Text style={styles.welcomeSubtitle}>How are you feeling today?</Text>
+            <Pressable
+              style={({ pressed }) => [styles.exploreBtn, pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] }]}
+              onPress={() => setIsModalVisible(true)}
+            >
               <Text style={styles.exploreBtnText}>Create Post</Text>
             </Pressable>
           </View>
-          <LayoutGrid color={Theme.colors.primary} size={60} opacity={0.1} style={styles.bgIcon} />
+          <View style={styles.welcomeBgBlob} />
+          <LayoutGrid color="#fff" size={80} opacity={0.15} style={styles.bgIcon} />
         </View>
 
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Recent Updates</Text>
+          <Pressable>
+            <Text style={styles.seeAllLink}>See everything</Text>
+          </Pressable>
         </View>
       </View>
     </View>
@@ -390,13 +397,29 @@ const styles = StyleSheet.create({
   },
   welcomeCard: {
     backgroundColor: Theme.colors.primary,
-    borderRadius: Theme.borderRadius.xl,
+    borderRadius: Theme.borderRadius.xxl,
     padding: Theme.spacing.xl,
     flexDirection: 'row',
     alignItems: 'center',
     overflow: 'hidden',
     position: 'relative',
-    marginVertical: Theme.spacing.xl,
+    marginTop: Theme.spacing.md,
+    marginBottom: Theme.spacing.xl,
+    elevation: 8,
+    shadowColor: Theme.colors.primary,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 15,
+  },
+  welcomeBgBlob: {
+    position: 'absolute',
+    top: -50,
+    right: -50,
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    zIndex: 0,
   },
   welcomeInfo: {
     flex: 1,
@@ -433,7 +456,18 @@ const styles = StyleSheet.create({
     zIndex: 0,
   },
   sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: Theme.spacing.md,
+  },
+  seeAllLink: {
+    fontSize: 14,
+    fontFamily: Theme.fonts.bold,
+    color: Theme.colors.primary,
+  },
+  headerContainer: {
+    backgroundColor: Theme.colors.background,
   },
   sectionTitle: {
     fontSize: 18,
@@ -444,8 +478,13 @@ const styles = StyleSheet.create({
     backgroundColor: Theme.colors.surface,
     marginBottom: Theme.spacing.md,
     paddingVertical: Theme.spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: Theme.colors.border,
+    borderRadius: Theme.borderRadius.lg,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
+    marginHorizontal: Theme.spacing.md,
   },
   postHeader: {
     flexDirection: 'row',
