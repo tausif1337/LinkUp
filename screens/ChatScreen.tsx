@@ -1,102 +1,87 @@
 import React, { useState, useEffect, useCallback, memo } from 'react';
-import { View, Text, StyleSheet, Pressable, Platform, Image, Dimensions } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { View, Text, StyleSheet, Pressable, Image, Dimensions } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GiftedChat, IMessage, Send, Bubble, InputToolbar } from 'react-native-gifted-chat';
 import { User } from 'firebase/auth';
-import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, doc, setDoc } from 'firebase/firestore';
+import {
+    collection, addDoc, query, orderBy,
+    onSnapshot, serverTimestamp, doc, setDoc
+} from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { Theme } from '../theme/Theme';
-import { ChevronLeft, Send as SendIcon, Info, User as UserIcon } from 'lucide-react-native';
+import { ChevronLeft, Send as SendIcon, Video, User as UserIcon } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
-import Animated, { FadeInUp, FadeInRight, FadeInLeft, useAnimatedStyle, withSpring, useSharedValue } from 'react-native-reanimated';
+import Animated, {
+    FadeInRight, FadeInLeft,
+    useAnimatedStyle, withSpring, useSharedValue
+} from 'react-native-reanimated';
 
-const { width } = Dimensions.get('window');
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-// --- Sub-components to comply with Rules of Hooks ---
+// ─── Sub-components (must be outside parent to satisfy Rules of Hooks) ────────
 
-const CustomSend = memo(({ sendButtonScale, ...props }: any) => {
+const AnimatedSendButton = memo(({ sendButtonScale, ...props }: any) => {
     const animatedStyle = useAnimatedStyle(() => ({
-        transform: [{ scale: sendButtonScale.value }]
+        transform: [{ scale: sendButtonScale.value }],
     }));
-
     return (
-        <Send {...props} isSendButtonAlwaysVisible containerStyle={styles.sendContainer}>
+        <Send
+            {...props}
+            isSendButtonAlwaysVisible
+            containerStyle={styles.sendContainer}
+        >
             <Animated.View style={[styles.sendButton, animatedStyle]}>
-                <SendIcon size={20} color="#fff" fill="#fff" />
+                <SendIcon size={18} color="#fff" fill="#fff" />
             </Animated.View>
         </Send>
     );
 });
 
-const CustomBubble = memo(({ userUid, ...props }: any) => {
+const MessageBubble = memo(({ userUid, ...props }: any) => {
     const isSelf = props.currentMessage.user._id === userUid;
-
     return (
         <Animated.View
-            entering={isSelf ? FadeInRight.springify() : FadeInLeft.springify()}
-            style={{ marginBottom: 4 }}
+            entering={isSelf ? FadeInRight.duration(300) : FadeInLeft.duration(300)}
         >
             {isSelf ? (
                 <LinearGradient
-                    colors={[Theme.colors.primary, '#6366F1']}
+                    colors={['#5B4FF5', '#7C6BFF']}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
-                    style={[
-                        styles.bubbleWrapper,
-                        {
-                            borderTopLeftRadius: 22,
-                            borderTopRightRadius: 22,
-                            borderBottomLeftRadius: 22,
-                            borderBottomRightRadius: 6,
-                        }
-                    ]}
+                    style={styles.bubbleSelf}
                 >
                     <Bubble
                         {...props}
                         wrapperStyle={{
-                            right: { backgroundColor: 'transparent', margin: 0, padding: 0 },
-                            left: { backgroundColor: 'transparent', margin: 0, padding: 0 }
+                            right: { backgroundColor: 'transparent', margin: 0 },
+                            left: { backgroundColor: 'transparent', margin: 0 },
                         }}
                         textStyle={{
-                            right: { color: '#fff', fontFamily: Theme.fonts.regular, fontSize: 16, lineHeight: 22 },
-                            left: { color: Theme.colors.text, fontFamily: Theme.fonts.regular, fontSize: 16, lineHeight: 22 }
+                            right: { color: '#fff', fontFamily: Theme.fonts.regular, fontSize: 15, lineHeight: 21 },
+                            left: { color: '#0F172A', fontFamily: Theme.fonts.regular, fontSize: 15, lineHeight: 21 },
                         }}
                         timeTextStyle={{
-                            right: { color: 'rgba(255,255,255,0.7)', fontSize: 11 },
-                            left: { color: Theme.colors.textMuted, fontSize: 11 }
+                            right: { color: 'rgba(255,255,255,0.65)', fontSize: 11 },
+                            left: { color: '#94A3B8', fontSize: 11 },
                         }}
                     />
                 </LinearGradient>
             ) : (
-                <View style={[
-                    styles.bubbleWrapper,
-                    {
-                        backgroundColor: '#FFFFFF',
-                        borderTopLeftRadius: 22,
-                        borderTopRightRadius: 22,
-                        borderBottomLeftRadius: 6,
-                        borderBottomRightRadius: 22,
-                        shadowColor: '#000',
-                        shadowOffset: { width: 0, height: 2 },
-                        shadowOpacity: 0.04,
-                        shadowRadius: 8,
-                        elevation: 2,
-                    }
-                ]}>
+                <View style={styles.bubbleOther}>
                     <Bubble
                         {...props}
                         wrapperStyle={{
-                            right: { backgroundColor: 'transparent', margin: 0, padding: 0 },
-                            left: { backgroundColor: 'transparent', margin: 0, padding: 0 }
+                            right: { backgroundColor: 'transparent', margin: 0 },
+                            left: { backgroundColor: 'transparent', margin: 0 },
                         }}
                         textStyle={{
-                            right: { color: '#fff', fontFamily: Theme.fonts.regular, fontSize: 16, lineHeight: 22 },
-                            left: { color: Theme.colors.text, fontFamily: Theme.fonts.regular, fontSize: 16, lineHeight: 22 }
+                            right: { color: '#fff', fontFamily: Theme.fonts.regular, fontSize: 15, lineHeight: 21 },
+                            left: { color: '#0F172A', fontFamily: Theme.fonts.regular, fontSize: 15, lineHeight: 21 },
                         }}
                         timeTextStyle={{
-                            right: { color: 'rgba(255,255,255,0.7)', fontSize: 11 },
-                            left: { color: Theme.colors.textMuted, fontSize: 11 }
+                            right: { color: 'rgba(255,255,255,0.65)', fontSize: 11 },
+                            left: { color: '#94A3B8', fontSize: 11 },
                         }}
                     />
                 </View>
@@ -105,150 +90,124 @@ const CustomBubble = memo(({ userUid, ...props }: any) => {
     );
 });
 
-const CustomInputToolbar = memo((props: any) => {
-    return (
-        <InputToolbar
-            {...props}
-            containerStyle={styles.inputToolbar}
-            primaryStyle={{ alignItems: 'center' }}
-        />
-    );
-});
+const ChatInputToolbar = memo((props: any) => (
+    <InputToolbar
+        {...props}
+        containerStyle={styles.inputToolbar}
+        primaryStyle={styles.inputPrimary}
+    />
+));
 
-type Props = {
-    user: User;
-    route: any;
-    navigation: any;
-};
+// ─── Main Screen ──────────────────────────────────────────────────────────────
+
+type Props = { user: User; route: any; navigation: any };
 
 export default function ChatScreen({ user, route, navigation }: Props) {
     const { recipient } = route.params;
     const [messages, setMessages] = useState<IMessage[]>([]);
-    const [isTyping] = useState(false);
     const insets = useSafeAreaInsets();
-    const sendButtonScale = useSharedValue(1);
+    const sendScale = useSharedValue(1);
 
     const chatId = [user.uid, recipient.uid].sort().join('_');
 
-    useEffect(() => {
-        const messagesRef = collection(db, 'chats', chatId, 'messages');
-        const q = query(messagesRef, orderBy('createdAt', 'desc'));
+    // Dynamic header height (safe-area + inner content)
+    const HEADER_HEIGHT = insets.top + 64;
 
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const allMessages = snapshot.docs.map(doc => {
-                const data = doc.data();
+    useEffect(() => {
+        const q = query(
+            collection(db, 'chats', chatId, 'messages'),
+            orderBy('createdAt', 'desc')
+        );
+        return onSnapshot(q, snap => {
+            setMessages(snap.docs.map(d => {
+                const data = d.data();
                 return {
-                    _id: doc.id,
+                    _id: d.id,
                     text: data.text,
                     createdAt: data.createdAt?.toDate() || new Date(),
                     user: data.user,
                 } as IMessage;
-            });
-            setMessages(allMessages);
+            }));
         });
-
-        return unsubscribe;
     }, [chatId]);
 
     const onSend = useCallback(async (newMessages: IMessage[] = []) => {
-        const { _id, text, user: messageUser } = newMessages[0];
-
+        const { _id, text, user: msgUser } = newMessages[0];
         try {
             await addDoc(collection(db, 'chats', chatId, 'messages'), {
-                _id,
-                text,
-                createdAt: serverTimestamp(),
-                user: messageUser,
+                _id, text, createdAt: serverTimestamp(), user: msgUser,
             });
-
-            const chatRef = doc(db, 'chats', chatId);
-            await setDoc(chatRef, {
+            await setDoc(doc(db, 'chats', chatId), {
                 participants: [user.uid, recipient.uid],
                 participantDetails: {
-                    [user.uid]: {
-                        displayName: user.displayName || 'User',
-                        photoURL: user.photoURL || '',
-                    },
-                    [recipient.uid]: {
-                        displayName: recipient.displayName,
-                        photoURL: recipient.photoURL || '',
-                    }
+                    [user.uid]: { displayName: user.displayName || 'User', photoURL: user.photoURL || '' },
+                    [recipient.uid]: { displayName: recipient.displayName, photoURL: recipient.photoURL || '' },
                 },
                 lastMessage: text,
                 lastUpdate: serverTimestamp(),
                 users: [user.uid, recipient.uid],
             }, { merge: true });
-
-        } catch (error) {
-            console.error("Error sending message:", error);
-        }
+        } catch (e) { console.error(e); }
     }, [chatId, user, recipient]);
 
     return (
-        <View style={styles.container}>
-            <View style={styles.backgroundGradient} />
-
+        <View style={styles.screen}>
+            {/* Chat list — paddingTop pushes messages below the floating header */}
             <GiftedChat
                 messages={messages}
-                onSend={messages => onSend(messages)}
-                user={{
-                    _id: user.uid,
-                    name: user.displayName || 'You',
-                    avatar: user.photoURL || '',
-                }}
-                renderSend={(props) => <CustomSend {...props} sendButtonScale={sendButtonScale} />}
-                renderBubble={(props) => <CustomBubble {...props} userUid={user.uid} />}
-                renderInputToolbar={(props) => <CustomInputToolbar {...props} />}
+                onSend={msgs => onSend(msgs)}
+                user={{ _id: user.uid, name: user.displayName || 'You', avatar: user.photoURL || '' }}
+                renderSend={props => <AnimatedSendButton {...props} sendButtonScale={sendScale} />}
+                renderBubble={props => <MessageBubble {...props} userUid={user.uid} />}
+                renderInputToolbar={props => <ChatInputToolbar {...props} />}
                 renderAvatar={null}
-                renderFooter={() => isTyping ? (
-                    <View style={styles.typingIndicator}>
-                        <Text style={styles.typingText}>{recipient.displayName} is typing...</Text>
-                    </View>
-                ) : null}
+                isSendButtonAlwaysVisible
+                messagesContainerStyle={{ paddingTop: HEADER_HEIGHT }}
+                minInputToolbarHeight={64 + insets.bottom}
+                maxComposerHeight={120}
                 textInputProps={{
-                    placeholder: "Message...",
+                    placeholder: 'Message...',
+                    placeholderTextColor: '#94A3B8',
                     style: styles.textInput,
-                    placeholderTextColor: Theme.colors.textMuted,
-                    onFocus: () => {
-                        sendButtonScale.value = withSpring(1.2);
-                    },
-                    onBlur: () => { sendButtonScale.value = withSpring(1); },
-                }}
-                minInputToolbarHeight={80}
-                maxComposerHeight={100}
-                listProps={{
-                    contentContainerStyle: {
-                        paddingBottom: 24,
-                        paddingTop: insets.top + 80,
-                    }
+                    onFocus: () => { sendScale.value = withSpring(1.15); },
+                    onBlur: () => { sendScale.value = withSpring(1); },
                 }}
             />
 
-            {/* Floating Glassmorphism Header */}
-            <View style={[styles.headerContainer, { paddingTop: insets.top }]}>
+            {/* ── Floating Header (rendered last so it sits on top) ── */}
+            <View style={[styles.header, { paddingTop: insets.top }]} pointerEvents="box-none">
                 <BlurView intensity={90} tint="light" style={StyleSheet.absoluteFill} />
-                <View style={styles.headerContent}>
-                    <Pressable onPress={() => navigation.goBack()} style={styles.backButton}>
-                        <ChevronLeft size={26} color={Theme.colors.text} />
+                <View style={styles.headerRow}>
+                    {/* Back */}
+                    <Pressable
+                        onPress={() => navigation.goBack()}
+                        style={({ pressed }) => [styles.headerBtn, pressed && styles.pressed]}
+                    >
+                        <ChevronLeft size={24} color={Theme.colors.text} />
                     </Pressable>
-                    <View style={styles.headerUser}>
-                        <View style={styles.avatarWrapper}>
-                            {recipient.photoURL ? (
-                                <Image source={{ uri: recipient.photoURL }} style={styles.avatar} />
-                            ) : (
-                                <View style={[styles.avatar, styles.placeholderAvatar]}>
-                                    <UserIcon size={20} color={Theme.colors.primary} />
-                                </View>
-                            )}
-                            <View style={styles.statusDot} />
+
+                    {/* Avatar + name */}
+                    <Pressable style={styles.headerCenter}>
+                        <View style={styles.avatarWrap}>
+                            {recipient.photoURL
+                                ? <Image source={{ uri: recipient.photoURL }} style={styles.avatar} />
+                                : (
+                                    <View style={styles.avatarFallback}>
+                                        <UserIcon size={18} color={Theme.colors.primary} />
+                                    </View>
+                                )
+                            }
+                            <View style={styles.onlineDot} />
                         </View>
-                        <View style={styles.headerInfo}>
-                            <Text style={styles.headerName}>{recipient.displayName}</Text>
-                            <Text style={styles.headerStatus}>Online</Text>
+                        <View style={styles.headerMeta}>
+                            <Text style={styles.headerName} numberOfLines={1}>{recipient.displayName}</Text>
+                            <Text style={styles.headerSub}>Online</Text>
                         </View>
-                    </View>
-                    <Pressable style={styles.iconButton}>
-                        <Info size={22} color={Theme.colors.textSecondary} />
+                    </Pressable>
+
+                    {/* Action */}
+                    <Pressable style={({ pressed }) => [styles.headerBtn, pressed && styles.pressed]}>
+                        <Video size={22} color={Theme.colors.textSecondary} />
                     </Pressable>
                 </View>
             </View>
@@ -256,148 +215,160 @@ export default function ChatScreen({ user, route, navigation }: Props) {
     );
 }
 
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
-    container: {
+    screen: {
         flex: 1,
-        backgroundColor: '#FFFFFF',
+        backgroundColor: '#F7F8FA',
     },
-    backgroundGradient: {
+
+    // ─ Header ─
+    header: {
         position: 'absolute',
         top: 0,
         left: 0,
         right: 0,
-        bottom: 0,
-        backgroundColor: '#F8FAFC',
-    },
-    headerContainer: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        zIndex: 10,
+        zIndex: 99,
+        overflow: 'hidden',
         borderBottomWidth: StyleSheet.hairlineWidth,
-        borderBottomColor: 'rgba(0,0,0,0.06)',
+        borderBottomColor: 'rgba(0,0,0,0.07)',
     },
-    headerContent: {
+    headerRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 16,
-        paddingBottom: 14,
-        paddingTop: 8,
-    },
-    backButton: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    headerUser: {
-        flex: 1,
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginLeft: 4,
-    },
-    avatarWrapper: {
-        position: 'relative',
-    },
-    avatar: {
-        width: 42,
-        height: 42,
-        borderRadius: 21,
-        borderWidth: 2,
-        borderColor: '#fff',
-    },
-    placeholderAvatar: {
-        backgroundColor: '#EEF2FF',
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    statusDot: {
-        position: 'absolute',
-        bottom: 0,
-        right: 0,
-        width: 13,
-        height: 13,
-        borderRadius: 6.5,
-        backgroundColor: '#10B981',
-        borderWidth: 2.5,
-        borderColor: '#fff',
-    },
-    headerInfo: {
-        marginLeft: 12,
-    },
-    headerName: {
-        fontSize: 17,
-        fontFamily: Theme.fonts.bold,
-        color: Theme.colors.text,
-        letterSpacing: -0.3,
-    },
-    headerStatus: {
-        fontSize: 12,
-        fontFamily: Theme.fonts.medium,
-        color: '#10B981',
-        marginTop: -1,
-    },
-    bubbleWrapper: {
-        paddingHorizontal: 14,
+        paddingHorizontal: 8,
         paddingVertical: 10,
-        maxWidth: width * 0.78,
     },
-    sendContainer: {
-        justifyContent: 'center',
-        alignItems: 'center',
-        height: 56,
-        marginRight: 6,
-    },
-    sendButton: {
-        backgroundColor: Theme.colors.primary,
+    headerBtn: {
         width: 44,
         height: 44,
         borderRadius: 22,
         justifyContent: 'center',
         alignItems: 'center',
-        shadowColor: Theme.colors.primary,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.25,
-        shadowRadius: 8,
-        elevation: 4,
     },
+    pressed: { opacity: 0.5 },
+    headerCenter: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginHorizontal: 4,
+    },
+    avatarWrap: { position: 'relative' },
+    avatar: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        borderWidth: 2,
+        borderColor: '#fff',
+    },
+    avatarFallback: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: '#EEF2FF',
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 2,
+        borderColor: '#fff',
+    },
+    onlineDot: {
+        position: 'absolute',
+        bottom: 0,
+        right: 0,
+        width: 12,
+        height: 12,
+        borderRadius: 6,
+        backgroundColor: '#10B981',
+        borderWidth: 2,
+        borderColor: '#fff',
+    },
+    headerMeta: { marginLeft: 10, flex: 1 },
+    headerName: {
+        fontSize: 16,
+        fontFamily: Theme.fonts.bold,
+        color: Theme.colors.text,
+        letterSpacing: -0.2,
+    },
+    headerSub: {
+        fontSize: 12,
+        fontFamily: Theme.fonts.medium,
+        color: '#10B981',
+    },
+
+    // ─ Bubbles ─
+    bubbleSelf: {
+        maxWidth: SCREEN_WIDTH * 0.76,
+        paddingHorizontal: 14,
+        paddingVertical: 10,
+        borderTopLeftRadius: 22,
+        borderTopRightRadius: 22,
+        borderBottomLeftRadius: 22,
+        borderBottomRightRadius: 5,
+        marginBottom: 4,
+    },
+    bubbleOther: {
+        maxWidth: SCREEN_WIDTH * 0.76,
+        backgroundColor: '#FFFFFF',
+        paddingHorizontal: 14,
+        paddingVertical: 10,
+        borderTopLeftRadius: 22,
+        borderTopRightRadius: 22,
+        borderBottomLeftRadius: 5,
+        borderBottomRightRadius: 22,
+        marginBottom: 4,
+        // subtle lift
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 6,
+        elevation: 1,
+    },
+
+    // ─ Input Toolbar ─
     inputToolbar: {
         backgroundColor: '#FFFFFF',
         borderTopWidth: StyleSheet.hairlineWidth,
-        borderTopColor: 'rgba(0,0,0,0.05)',
+        borderTopColor: 'rgba(0,0,0,0.06)',
         paddingHorizontal: 12,
         paddingTop: 8,
-        paddingBottom: Platform.OS === 'ios' ? 24 : 12,
+        paddingBottom: 8,
     },
-    iconButton: {
-        width: 44,
-        height: 44,
-        justifyContent: 'center',
+    inputPrimary: {
+        flexDirection: 'row',
         alignItems: 'center',
     },
     textInput: {
         flex: 1,
-        backgroundColor: '#F1F5F9', // Subtle gray background for the input
+        backgroundColor: '#F1F5F9',
         borderRadius: 24,
         paddingHorizontal: 16,
-        paddingTop: 12,
-        paddingBottom: 12,
-        fontSize: 16,
+        paddingTop: 10,
+        paddingBottom: 10,
+        fontSize: 15,
         fontFamily: Theme.fonts.regular,
-        color: Theme.colors.text,
+        color: '#0F172A',
         maxHeight: 120,
-        marginHorizontal: 8,
+        // No margin needed — the toolbar padding handles spacing
     },
-    typingIndicator: {
-        paddingHorizontal: 24,
-        paddingVertical: 12,
+
+    // ─ Send ─
+    sendContainer: {
+        width: 52,
+        justifyContent: 'center',
+        alignItems: 'center',
     },
-    typingText: {
-        fontSize: 13,
-        fontFamily: Theme.fonts.medium,
-        color: Theme.colors.textSecondary,
-        fontStyle: 'italic',
+    sendButton: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: Theme.colors.primary,
+        justifyContent: 'center',
+        alignItems: 'center',
+        shadowColor: Theme.colors.primary,
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.3,
+        shadowRadius: 6,
+        elevation: 4,
     },
 });
