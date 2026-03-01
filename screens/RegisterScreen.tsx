@@ -19,7 +19,7 @@ import { auth } from '../config/firebase';
 import { Theme } from '../theme/Theme';
 
 type Props = {
-  onNavigate: (screen: 'Login' | 'Register' | 'Feed') => void;
+  onNavigate: (screen: any, params?: any) => void;
 };
 
 export default function RegisterScreen({ onNavigate }: Props) {

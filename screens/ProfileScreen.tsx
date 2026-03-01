@@ -25,7 +25,7 @@ import { pickImage, uploadToCloudinary } from '../utils/imageUtils';
 
 type Props = {
   user: User;
-  onNavigate: (screen: 'Login' | 'Register' | 'Feed' | 'Profile') => void;
+  onNavigate: (screen: any, params?: any) => void;
 };
 
 type UserProfile = {

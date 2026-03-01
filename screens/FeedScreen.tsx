@@ -22,7 +22,7 @@ import { collection, addDoc, serverTimestamp, query, orderBy, onSnapshot } from 
 
 type Props = {
   user: User;
-  onNavigate: (screen: 'Login' | 'Register' | 'Feed' | 'Profile') => void;
+  onNavigate: (screen: any, params?: any) => void;
 };
 
 type Post = {
@@ -174,7 +174,10 @@ export default function FeedScreen({ user, onNavigate }: Props) {
         <Pressable style={styles.postAction}>
           <Heart color={Theme.colors.textSecondary} size={22} />
         </Pressable>
-        <Pressable style={styles.postAction}>
+        <Pressable
+          style={styles.postAction}
+          onPress={() => onNavigate('Chat', { recipient: { uid: item.userId, displayName: item.userName, photoURL: item.userPhoto } })}
+        >
           <MessageSquare color={Theme.colors.textSecondary} size={22} />
         </Pressable>
         <Pressable style={styles.postAction}>
@@ -195,7 +198,10 @@ export default function FeedScreen({ user, onNavigate }: Props) {
           <Pressable style={styles.iconButton}>
             <Search color={Theme.colors.textSecondary} size={22} />
           </Pressable>
-          <Pressable style={styles.iconButton}>
+          <Pressable
+            style={styles.iconButton}
+            onPress={() => onNavigate('Messages')}
+          >
             <Bell color={Theme.colors.textSecondary} size={22} />
           </Pressable>
           <Pressable

@@ -4,15 +4,17 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { auth } from './config/firebase';
-import LoginScreen from './screens/LoginScreen';
-import RegisterScreen from './screens/RegisterScreen';
-import FeedScreen from './screens/FeedScreen';
-import ProfileScreen from './screens/ProfileScreen';
+import LoginScreen from './screens/LoginScreen.tsx';
+import RegisterScreen from './screens/RegisterScreen.tsx';
+import FeedScreen from './screens/FeedScreen.tsx';
+import ProfileScreen from './screens/ProfileScreen.tsx';
+import MessagesScreen from './screens/MessagesScreen.tsx';
+import ChatScreen from './screens/ChatScreen.tsx';
 import { useFonts, Inter_400Regular, Inter_500Medium, Inter_700Bold } from '@expo-google-fonts/inter';
 import { Outfit_700Bold } from '@expo-google-fonts/outfit';
 import { Theme } from './theme/Theme';
 
-type Screen = 'Login' | 'Register' | 'Feed' | 'Profile';
+type Screen = 'Login' | 'Register' | 'Feed' | 'Profile' | 'Messages' | 'Chat';
 
 export default function App() {
   const [fontsLoaded] = useFonts({
@@ -23,8 +25,14 @@ export default function App() {
   });
 
   const [currentScreen, setCurrentScreen] = useState<Screen>('Login');
+  const [screenParams, setScreenParams] = useState<any>(null);
   const [user, setUser] = useState<User | null>(null);
   const [initializing, setInitializing] = useState(true);
+
+  const navigate = (screen: Screen, params?: any) => {
+    setCurrentScreen(screen);
+    setScreenParams(params);
+  };
 
   useEffect(() => {
     // Listen to auth state changes
@@ -71,17 +79,23 @@ export default function App() {
 
   const renderScreen = () => {
     if (user) {
-      if (currentScreen === 'Profile') {
-        return <ProfileScreen user={user} onNavigate={setCurrentScreen} />;
+      switch (currentScreen) {
+        case 'Profile':
+          return <ProfileScreen user={user} onNavigate={navigate} />;
+        case 'Messages':
+          return <MessagesScreen user={user} onNavigate={navigate} />;
+        case 'Chat':
+          return <ChatScreen user={user} recipient={screenParams?.recipient} onNavigate={navigate} />;
+        default:
+          return <FeedScreen user={user} onNavigate={navigate} />;
       }
-      return <FeedScreen user={user} onNavigate={setCurrentScreen} />;
     }
 
     if (currentScreen === 'Register') {
-      return <RegisterScreen onNavigate={setCurrentScreen} />;
+      return <RegisterScreen onNavigate={navigate} />;
     }
 
-    return <LoginScreen onNavigate={setCurrentScreen} />;
+    return <LoginScreen onNavigate={navigate} />;
   };
 
   return (
