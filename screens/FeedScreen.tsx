@@ -145,7 +145,10 @@ export default function FeedScreen({ user, navigation }: Props) {
   const renderPost = ({ item }: { item: Post }) => (
     <View style={styles.postCard}>
       <View style={styles.postHeader}>
-        <View style={styles.postUserInfo}>
+        <Pressable
+          style={styles.postUserInfo}
+          onPress={() => navigation.navigate('UserProfile', { userId: item.userId })}
+        >
           <View style={styles.postAvatar}>
             {item.userPhoto ? (
               <Image source={{ uri: item.userPhoto }} style={styles.avatarImage} />
@@ -159,7 +162,7 @@ export default function FeedScreen({ user, navigation }: Props) {
               {item.createdAt?.toDate ? new Date(item.createdAt.toDate()).toLocaleDateString() : 'Just now'}
             </Text>
           </View>
-        </View>
+        </Pressable>
         <Pressable>
           <MoreVertical color={Theme.colors.textMuted} size={20} />
         </Pressable>
@@ -167,9 +170,9 @@ export default function FeedScreen({ user, navigation }: Props) {
 
       {item.caption ? <Text style={styles.postCaption}>{item.caption}</Text> : null}
 
-      {item.imageUrl ? (
-        <Image source={{ uri: item.imageUrl }} style={styles.postImage} resizeMode="cover" />
-      ) : null}
+      {item.imageUrl && (
+        <Image source={{ uri: item.imageUrl }} style={styles.postImage} />
+      )}
 
       <View style={styles.postActions}>
         <Pressable style={styles.postAction}>
@@ -177,11 +180,14 @@ export default function FeedScreen({ user, navigation }: Props) {
         </Pressable>
         <Pressable
           style={styles.postAction}
-          onPress={() => navigation.navigate('Chat', { recipient: { uid: item.userId, displayName: item.userName, photoURL: item.userPhoto } })}
+          onPress={() => { /* Handle Comment */ }}
         >
           <MessageSquare color={Theme.colors.textSecondary} size={22} />
         </Pressable>
-        <Pressable style={styles.postAction}>
+        <Pressable
+          style={styles.postAction}
+          onPress={() => { /* Handle Share */ }}
+        >
           <Share2 color={Theme.colors.textSecondary} size={22} />
         </Pressable>
       </View>

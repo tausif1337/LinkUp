@@ -45,6 +45,7 @@ function TabNavigator({ user }: { user: User }) {
           backgroundColor: Theme.colors.surface,
           borderTopWidth: 1,
           borderTopColor: Theme.colors.border,
+          borderRadius: Theme.borderRadius.full,
           height: 64,
           paddingBottom: 10,
           paddingTop: 10,
@@ -130,6 +131,9 @@ export default function App() {
               </Stack.Screen>
               <Stack.Screen name="Chat">
                 {(props) => <ChatScreen {...props} user={user} />}
+              </Stack.Screen>
+              <Stack.Screen name="UserProfile">
+                {(props) => <ProfileScreen {...props} user={user} />}
               </Stack.Screen>
             </>
           ) : (

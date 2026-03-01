@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, Pressable, Platform, KeyboardAvoidingView } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GiftedChat, IMessage, Send, Bubble, InputToolbar } from 'react-native-gifted-chat';
 import { User } from 'firebase/auth';
 import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, doc, setDoc, updateDoc } from 'firebase/firestore';
@@ -17,6 +17,7 @@ type Props = {
 export default function ChatScreen({ user, route, navigation }: Props) {
     const { recipient } = route.params;
     const [messages, setMessages] = useState<IMessage[]>([]);
+    const insets = useSafeAreaInsets();
 
     const chatId = [user.uid, recipient.uid].sort().join('_');
 
@@ -127,7 +128,7 @@ export default function ChatScreen({ user, route, navigation }: Props) {
     };
 
     return (
-        <SafeAreaView style={styles.container} edges={['top']}>
+        <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
             {/* Header */}
             <View style={styles.header}>
                 <Pressable onPress={() => navigation.goBack()} style={styles.backButton}>
@@ -139,23 +140,28 @@ export default function ChatScreen({ user, route, navigation }: Props) {
                 </View>
             </View>
 
-            <GiftedChat
-                messages={messages}
-                onSend={messages => onSend(messages)}
-                user={{
-                    _id: user.uid,
-                    name: user.displayName || 'You',
-                    avatar: user.photoURL || '',
-                }}
-                renderSend={renderSend}
-                renderBubble={renderBubble}
-                renderInputToolbar={renderInputToolbar}
-                textInputProps={{
-                    placeholder: "Type a message...",
-                }}
-                isSendButtonAlwaysVisible
-            />
-            {Platform.OS === 'android' && <KeyboardAvoidingView behavior="padding" />}
+            <View style={{ flex: 1 }}>
+                <GiftedChat
+                    messages={messages}
+                    onSend={messages => onSend(messages)}
+                    user={{
+                        _id: user.uid,
+                        name: user.displayName || 'You',
+                        avatar: user.photoURL || '',
+                    }}
+                    renderSend={renderSend}
+                    renderBubble={renderBubble}
+                    renderInputToolbar={renderInputToolbar}
+                    textInputProps={{
+                        placeholder: "Type a message...",
+                        style: styles.textInput,
+                    }}
+                    isSendButtonAlwaysVisible
+                    minInputToolbarHeight={60}
+                    // Handle keyboard behavior for multiple platforms
+                    {...(Platform.OS === 'android' ? { forceGetKeyboardHeight: true } : {})}
+                />
+            </View>
         </SafeAreaView>
     );
 }
@@ -209,6 +215,21 @@ const styles = StyleSheet.create({
         borderTopWidth: 1,
         borderTopColor: Theme.colors.border,
         backgroundColor: Theme.colors.surface,
-        paddingTop: 4,
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+    },
+    textInput: {
+        color: Theme.colors.text,
+        backgroundColor: '#F8FAFC',
+        borderRadius: 20,
+        paddingHorizontal: 16,
+        paddingVertical: Platform.OS === 'ios' ? 10 : 6,
+        marginTop: 6,
+        marginBottom: 6,
+        fontSize: 16,
+        fontFamily: Theme.fonts.regular,
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
+        minHeight: 40,
     },
 });

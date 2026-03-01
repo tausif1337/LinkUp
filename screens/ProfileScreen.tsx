@@ -16,7 +16,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { User, signOut, updateProfile } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { Camera, Edit2, Shield, Bell, HelpCircle, ChevronRight, ArrowLeft, LogOut, Check, X, User as UserIcon } from 'lucide-react-native';
+import { Camera, Edit2, Shield, Bell, HelpCircle, ChevronRight, ArrowLeft, LogOut, Check, X, MessageCircle, User as UserIcon } from 'lucide-react-native';
 import { auth, db } from '../config/firebase';
 
 import { Theme } from '../theme/Theme';
@@ -27,6 +27,7 @@ import { pickImage, uploadToCloudinary } from '../utils/imageUtils';
 type Props = {
   user: User;
   navigation: any;
+  route?: any;
 };
 
 type UserProfile = {
@@ -36,7 +37,11 @@ type UserProfile = {
   createdAt: string;
 };
 
-export default function ProfileScreen({ user, navigation }: Props) {
+export default function ProfileScreen({ user, navigation, route }: Props) {
+  const otherUserId = route?.params?.userId;
+  const isOtherUser = otherUserId && otherUserId !== user.uid;
+  const targetUid = isOtherUser ? otherUserId : user.uid;
+
   const [isInitializing, setIsInitializing] = useState(true);
   const [saving, setSaving] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -69,7 +74,7 @@ export default function ProfileScreen({ user, navigation }: Props) {
 
     setIsInitializing(true);
     try {
-      const userDocRef = doc(db, 'users', user.uid);
+      const userDocRef = doc(db, 'users', targetUid);
       const userDoc = await getDoc(userDocRef);
 
       if (userDoc.exists()) {
@@ -82,7 +87,8 @@ export default function ProfileScreen({ user, navigation }: Props) {
         };
         setProfile(profileData);
         setEditedProfile(profileData);
-      } else {
+      } else if (!isOtherUser) {
+        // Only create doc for current user if it doesn't exist
         const initialProfile: UserProfile = {
           displayName: user.displayName || '',
           bio: '',
@@ -96,6 +102,14 @@ export default function ProfileScreen({ user, navigation }: Props) {
         }
         setProfile(initialProfile);
         setEditedProfile(initialProfile);
+      } else {
+        // Other user doc doesn't exists
+        setProfile({
+          displayName: 'User Not Found',
+          bio: '',
+          photoURL: '',
+          createdAt: '',
+        });
       }
     } catch (error: any) {
       console.warn('Notice loading profile:', error);
@@ -211,10 +225,17 @@ export default function ProfileScreen({ user, navigation }: Props) {
         style={{ flex: 1 }}
       >
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Profile Settings</Text>
-          <Pressable onPress={handleLogout} style={styles.logoutBtn}>
-            <LogOut color={Theme.colors.error} size={20} />
-          </Pressable>
+          {navigation.canGoBack() && (
+            <Pressable onPress={() => navigation.goBack()} style={styles.backButton}>
+              <ArrowLeft color={Theme.colors.text} size={24} />
+            </Pressable>
+          )}
+          <Text style={styles.headerTitle}>{isOtherUser ? 'Profile' : 'Profile Settings'}</Text>
+          {!isOtherUser && (
+            <Pressable onPress={handleLogout} style={styles.logoutBtn}>
+              <LogOut color={Theme.colors.error} size={20} />
+            </Pressable>
+          )}
         </View>
 
         <ScrollView
@@ -239,7 +260,23 @@ export default function ProfileScreen({ user, navigation }: Props) {
             </Pressable>
 
             <Text style={styles.profileName}>{profile.displayName || 'Unnamed User'}</Text>
-            <Text style={styles.profileEmail}>{user.email}</Text>
+            {!isOtherUser && <Text style={styles.profileEmail}>{user.email}</Text>}
+
+            {isOtherUser && (
+              <Pressable
+                style={styles.messageUserBtn}
+                onPress={() => navigation.navigate('Chat', {
+                  recipient: {
+                    uid: targetUid,
+                    displayName: profile.displayName,
+                    photoURL: profile.photoURL
+                  }
+                })}
+              >
+                <MessageCircle color="#fff" size={20} />
+                <Text style={styles.messageUserBtnText}>Message</Text>
+              </Pressable>
+            )}
 
             <View style={styles.statsRow}>
               <View style={styles.statItem}>
@@ -256,101 +293,103 @@ export default function ProfileScreen({ user, navigation }: Props) {
             </View>
           </View>
 
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Personal Details</Text>
-              {!isEditing && (
-                <Pressable onPress={() => setIsEditing(true)} style={styles.editBtn}>
-                  <Edit2 color={Theme.colors.primary} size={16} />
-                  <Text style={styles.editBtnText}>Edit</Text>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>About</Text>
+            {!isEditing && !isOtherUser && (
+              <Pressable onPress={() => setIsEditing(true)} style={styles.editBtn}>
+                <Edit2 color={Theme.colors.primary} size={16} />
+                <Text style={styles.editBtnText}>Edit</Text>
+              </Pressable>
+            )}
+          </View>
+
+          <View style={styles.card}>
+            {isEditing ? (
+              <View style={styles.editForm}>
+                <View style={styles.field}>
+                  <Text style={styles.fieldLabel}>Display Name</Text>
+                  <TextInput
+                    style={[styles.input, errors.displayName && styles.inputError]}
+                    value={editedProfile.displayName}
+                    onChangeText={(t) => setEditedProfile(p => ({ ...p, displayName: t }))}
+                    placeholder="Your name"
+                  />
+                  {errors.displayName && <Text style={styles.errorHint}>{errors.displayName}</Text>}
+                </View>
+
+                <View style={styles.field}>
+                  <Text style={styles.fieldLabel}>Bio</Text>
+                  <TextInput
+                    style={[styles.textArea, errors.bio && styles.inputError]}
+                    value={editedProfile.bio}
+                    onChangeText={(t) => setEditedProfile(p => ({ ...p, bio: t }))}
+                    placeholder="Tell us about yourself"
+                    multiline
+                    numberOfLines={4}
+                  />
+                  {errors.bio && <Text style={styles.errorHint}>{errors.bio}</Text>}
+                </View>
+
+                <View style={styles.actionGrid}>
+                  <Pressable onPress={handleCancelEdit} style={styles.cancelBtn}>
+                    <X color={Theme.colors.textSecondary} size={20} />
+                    <Text style={styles.cancelBtnText}>Cancel</Text>
+                  </Pressable>
+                  <Pressable onPress={handleSaveProfile} style={styles.saveBtn} disabled={saving}>
+                    {saving ? (
+                      <ActivityIndicator color="#fff" />
+                    ) : (
+                      <>
+                        <Check color="#fff" size={20} />
+                        <Text style={styles.saveBtnText}>Save</Text>
+                      </>
+                    )}
+                  </Pressable>
+                </View>
+              </View>
+            ) : (
+              <View style={styles.displaySection}>
+                <View style={styles.displayItem}>
+                  <Text style={styles.displayLabel}>About You</Text>
+                  <Text style={styles.displayText}>
+                    {profile.bio || "Write something about yourself to complete your profile."}
+                  </Text>
+                </View>
+              </View>
+            )}
+          </View>
+
+          {!isOtherUser && (
+            <>
+              <Text style={[styles.sectionTitle, { marginLeft: Theme.spacing.md, marginBottom: Theme.spacing.sm }]}>Preferences</Text>
+              <View style={styles.listCard}>
+                <Pressable style={styles.listItem}>
+                  <View style={[styles.listIconBg, { backgroundColor: '#EEF2FF' }]}>
+                    <Bell color={Theme.colors.primary} size={20} />
+                  </View>
+                  <Text style={styles.listText}>Notifications</Text>
+                  <ChevronRight color={Theme.colors.textMuted} size={20} />
                 </Pressable>
-              )}
-            </View>
-
-            <View style={styles.card}>
-              {isEditing ? (
-                <View style={styles.editForm}>
-                  <View style={styles.field}>
-                    <Text style={styles.fieldLabel}>Display Name</Text>
-                    <TextInput
-                      style={[styles.input, errors.displayName && styles.inputError]}
-                      value={editedProfile.displayName}
-                      onChangeText={(t) => setEditedProfile(p => ({ ...p, displayName: t }))}
-                      placeholder="Your name"
-                    />
-                    {errors.displayName && <Text style={styles.errorHint}>{errors.displayName}</Text>}
+                <Pressable style={styles.listItem}>
+                  <View style={[styles.listIconBg, { backgroundColor: '#ECFDF5' }]}>
+                    <Shield color="#10B981" size={20} />
                   </View>
-
-                  <View style={styles.field}>
-                    <Text style={styles.fieldLabel}>Bio</Text>
-                    <TextInput
-                      style={[styles.textArea, errors.bio && styles.inputError]}
-                      value={editedProfile.bio}
-                      onChangeText={(t) => setEditedProfile(p => ({ ...p, bio: t }))}
-                      placeholder="Tell us about yourself"
-                      multiline
-                      numberOfLines={4}
-                    />
-                    {errors.bio && <Text style={styles.errorHint}>{errors.bio}</Text>}
+                  <Text style={styles.listText}>Privacy & Security</Text>
+                  <ChevronRight color={Theme.colors.textMuted} size={20} />
+                </Pressable>
+                <Pressable style={[styles.listItem, { borderBottomWidth: 0 }]}>
+                  <View style={[styles.listIconBg, { backgroundColor: '#FFF7ED' }]}>
+                    <HelpCircle color="#F59E0B" size={20} />
                   </View>
-
-                  <View style={styles.actionGrid}>
-                    <Pressable onPress={handleCancelEdit} style={styles.cancelBtn}>
-                      <X color={Theme.colors.textSecondary} size={20} />
-                      <Text style={styles.cancelBtnText}>Cancel</Text>
-                    </Pressable>
-                    <Pressable onPress={handleSaveProfile} style={styles.saveBtn} disabled={saving}>
-                      {saving ? (
-                        <ActivityIndicator color="#fff" />
-                      ) : (
-                        <>
-                          <Check color="#fff" size={20} />
-                          <Text style={styles.saveBtnText}>Save</Text>
-                        </>
-                      )}
-                    </Pressable>
-                  </View>
-                </View>
-              ) : (
-                <View style={styles.displaySection}>
-                  <View style={styles.displayItem}>
-                    <Text style={styles.displayLabel}>About You</Text>
-                    <Text style={styles.displayText}>
-                      {profile.bio || "Write something about yourself to complete your profile."}
-                    </Text>
-                  </View>
-                </View>
-              )}
-            </View>
-          </View>
-
-          <Text style={[styles.sectionTitle, { marginLeft: Theme.spacing.md, marginBottom: Theme.spacing.sm }]}>Preferences</Text>
-          <View style={styles.listCard}>
-            <Pressable style={styles.listItem}>
-              <View style={[styles.listIconBg, { backgroundColor: '#EEF2FF' }]}>
-                <Bell color={Theme.colors.primary} size={20} />
+                  <Text style={styles.listText}>Help Center</Text>
+                  <ChevronRight color={Theme.colors.textMuted} size={20} />
+                </Pressable>
               </View>
-              <Text style={styles.listText}>Notifications</Text>
-              <ChevronRight color={Theme.colors.textMuted} size={20} />
-            </Pressable>
-            <Pressable style={styles.listItem}>
-              <View style={[styles.listIconBg, { backgroundColor: '#ECFDF5' }]}>
-                <Shield color="#10B981" size={20} />
-              </View>
-              <Text style={styles.listText}>Privacy & Security</Text>
-              <ChevronRight color={Theme.colors.textMuted} size={20} />
-            </Pressable>
-            <Pressable style={[styles.listItem, { borderBottomWidth: 0 }]}>
-              <View style={[styles.listIconBg, { backgroundColor: '#FFF7ED' }]}>
-                <HelpCircle color="#F59E0B" size={20} />
-              </View>
-              <Text style={styles.listText}>Help Center</Text>
-              <ChevronRight color={Theme.colors.textMuted} size={20} />
-            </Pressable>
-          </View>
+            </>
+          )}
         </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+      </KeyboardAvoidingView >
+    </SafeAreaView >
   );
 }
 
@@ -391,6 +430,13 @@ const styles = StyleSheet.create({
     backgroundColor: Theme.colors.background,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: Theme.spacing.sm,
   },
   logoutBtn: {
     width: 40,
@@ -456,6 +502,26 @@ const styles = StyleSheet.create({
     fontFamily: Theme.fonts.regular,
     color: Theme.colors.textSecondary,
     marginBottom: Theme.spacing.lg,
+  },
+  messageUserBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Theme.colors.primary,
+    paddingHorizontal: Theme.spacing.xl,
+    paddingVertical: 12,
+    borderRadius: Theme.borderRadius.full,
+    gap: 8,
+    marginBottom: Theme.spacing.xl,
+    shadowColor: Theme.colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  messageUserBtnText: {
+    color: '#fff',
+    fontSize: 16,
+    fontFamily: Theme.fonts.bold,
   },
   statsRow: {
     flexDirection: 'row',
