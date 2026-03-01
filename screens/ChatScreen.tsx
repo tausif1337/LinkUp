@@ -102,17 +102,6 @@ const ChatInputToolbar = memo((props: any) => (
     />
 ));
 
-const ChatActions = memo((props: any) => (
-    <View style={styles.actionsContainer}>
-        <Pressable
-            onPress={() => { /* Handle attachments */ }}
-            style={({ pressed }) => [styles.actionButton, pressed && styles.pressed]}
-        >
-            <Plus size={22} color={Theme.colors.primary} strokeWidth={2.5} />
-        </Pressable>
-    </View>
-));
-
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
@@ -176,7 +165,6 @@ export default function ChatScreen({ user, route, navigation }: Props) {
                 renderSend={props => <AnimatedSendButton {...props} sendButtonScale={sendScale} />}
                 renderBubble={props => <MessageBubble {...props} userUid={user.uid} />}
                 renderInputToolbar={props => <ChatInputToolbar {...props} />}
-                renderActions={props => <ChatActions {...props} />}
                 renderAvatar={null}
                 isSendButtonAlwaysVisible={true}
                 messagesContainerStyle={{ paddingTop: HEADER_HEIGHT }}
