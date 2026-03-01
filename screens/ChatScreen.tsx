@@ -9,7 +9,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { Theme } from '../theme/Theme';
-import { ChevronLeft, Send as SendIcon, Video, User as UserIcon, Plus } from 'lucide-react-native';
+import { ChevronLeft, Send as SendIcon, Video, User as UserIcon } from 'lucide-react-native';
 
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
@@ -40,7 +40,6 @@ const AnimatedSendButton = memo(({ sendButtonScale, ...props }: any) => {
         </Send>
     );
 });
-
 
 const MessageBubble = memo(({ userUid, ...props }: any) => {
     const isSelf = props.currentMessage.user._id === userUid;
@@ -211,14 +210,10 @@ export default function ChatScreen({ user, route, navigation }: Props) {
                         </View>
                         <View style={styles.headerMeta}>
                             <Text style={styles.headerName} numberOfLines={1}>{recipient.displayName}</Text>
-                            <Text style={styles.headerSub}>Online</Text>
                         </View>
                     </Pressable>
 
-                    {/* Action */}
-                    <Pressable style={({ pressed }) => [styles.headerBtn, pressed && styles.pressed]}>
-                        <Video size={22} color={Theme.colors.textSecondary} />
-                    </Pressable>
+
                 </View>
             </View>
         </View>
