@@ -9,7 +9,8 @@ import {
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { Theme } from '../theme/Theme';
-import { ChevronLeft, Send as SendIcon, Video, User as UserIcon } from 'lucide-react-native';
+import { ChevronLeft, Send as SendIcon, Video, User as UserIcon, Plus } from 'lucide-react-native';
+
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import Animated, {
@@ -25,18 +26,21 @@ const AnimatedSendButton = memo(({ sendButtonScale, ...props }: any) => {
     const animatedStyle = useAnimatedStyle(() => ({
         transform: [{ scale: sendButtonScale.value }],
     }));
+
+    // If there is text, use a filled style; if not, maybe a different look.
+    // However, GiftedChat handles the visibility or we can just keep it consistent.
     return (
         <Send
             {...props}
-            isSendButtonAlwaysVisible
             containerStyle={styles.sendContainer}
         >
             <Animated.View style={[styles.sendButton, animatedStyle]}>
-                <SendIcon size={18} color="#fff" fill="#fff" />
+                <SendIcon size={18} color="#fff" strokeWidth={2.5} />
             </Animated.View>
         </Send>
     );
 });
+
 
 const MessageBubble = memo(({ userUid, ...props }: any) => {
     const isSelf = props.currentMessage.user._id === userUid;
@@ -97,6 +101,18 @@ const ChatInputToolbar = memo((props: any) => (
         primaryStyle={styles.inputPrimary}
     />
 ));
+
+const ChatActions = memo((props: any) => (
+    <View style={styles.actionsContainer}>
+        <Pressable
+            onPress={() => { /* Handle attachments */ }}
+            style={({ pressed }) => [styles.actionButton, pressed && styles.pressed]}
+        >
+            <Plus size={22} color={Theme.colors.primary} strokeWidth={2.5} />
+        </Pressable>
+    </View>
+));
+
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
@@ -160,22 +176,28 @@ export default function ChatScreen({ user, route, navigation }: Props) {
                 renderSend={props => <AnimatedSendButton {...props} sendButtonScale={sendScale} />}
                 renderBubble={props => <MessageBubble {...props} userUid={user.uid} />}
                 renderInputToolbar={props => <ChatInputToolbar {...props} />}
+                renderActions={props => <ChatActions {...props} />}
                 renderAvatar={null}
-                isSendButtonAlwaysVisible
+                isSendButtonAlwaysVisible={true}
                 messagesContainerStyle={{ paddingTop: HEADER_HEIGHT }}
-                minInputToolbarHeight={64 + insets.bottom}
-                maxComposerHeight={120}
+                minInputToolbarHeight={80 + insets.bottom}
+                maxComposerHeight={150}
+
+
+
                 textInputProps={{
-                    placeholder: 'Message...',
-                    placeholderTextColor: '#94A3B8',
+                    placeholder: 'Type a message...',
+                    placeholderTextColor: Theme.colors.textMuted,
                     style: styles.textInput,
-                    onFocus: () => { sendScale.value = withSpring(1.15); },
+                    onFocus: () => { sendScale.value = withSpring(1.1); },
                     onBlur: () => { sendScale.value = withSpring(1); },
                 }}
             />
 
+
             {/* ── Floating Header (rendered last so it sits on top) ── */}
             <View style={[styles.header, { paddingTop: insets.top }]} pointerEvents="box-none">
+
                 <BlurView intensity={90} tint="light" style={StyleSheet.absoluteFill} />
                 <View style={styles.headerRow}>
                     {/* Back */}
@@ -327,48 +349,75 @@ const styles = StyleSheet.create({
 
     // ─ Input Toolbar ─
     inputToolbar: {
-        backgroundColor: '#FFFFFF',
-        borderTopWidth: StyleSheet.hairlineWidth,
-        borderTopColor: 'rgba(0,0,0,0.06)',
-        paddingHorizontal: 12,
-        paddingTop: 8,
-        paddingBottom: 8,
+        backgroundColor: 'transparent',
+        borderTopWidth: 0,
+        marginHorizontal: 16,
+        marginBottom: 10, // Floating gap from bottom / safe area
+        paddingBottom: 0,
     },
     inputPrimary: {
         flexDirection: 'row',
         alignItems: 'center',
+        paddingHorizontal: 8,
+        paddingVertical: 6,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 32,
+        // Premium shadow for the floating bubble
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.1,
+        shadowRadius: 15,
+        elevation: 10,
+    },
+    actionsContainer: {
+        height: 40,
+        width: 40,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    actionButton: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: '#F8FAFC',
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: '#F1F5F9',
     },
     textInput: {
         flex: 1,
-        backgroundColor: '#F1F5F9',
-        borderRadius: 24,
-        paddingHorizontal: 16,
-        paddingTop: 10,
-        paddingBottom: 10,
+        backgroundColor: 'transparent', // No need for double background
+        paddingHorizontal: 12,
+        paddingTop: 8,
+        paddingBottom: 8,
+        marginHorizontal: 4,
         fontSize: 15,
         fontFamily: Theme.fonts.regular,
-        color: '#0F172A',
-        maxHeight: 120,
-        // No margin needed — the toolbar padding handles spacing
+        color: Theme.colors.text,
+        maxHeight: 150,
     },
 
     // ─ Send ─
     sendContainer: {
-        width: 52,
+        width: 40,
+        height: 40,
         justifyContent: 'center',
         alignItems: 'center',
     },
     sendButton: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
+        width: 34,
+        height: 34,
+        borderRadius: 17,
         backgroundColor: Theme.colors.primary,
         justifyContent: 'center',
         alignItems: 'center',
         shadowColor: Theme.colors.primary,
         shadowOffset: { width: 0, height: 3 },
-        shadowOpacity: 0.3,
+        shadowOpacity: 0.25,
         shadowRadius: 6,
         elevation: 4,
     },
+
+
 });
