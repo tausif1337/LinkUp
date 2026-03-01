@@ -13,16 +13,17 @@ import {
   TouchableWithoutFeedback,
   Keyboard,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { UserPlus, Mail, Lock, CheckCircle2, ArrowRight } from 'lucide-react-native';
 import { auth } from '../config/firebase';
 import { Theme } from '../theme/Theme';
 
 type Props = {
-  onNavigate: (screen: any, params?: any) => void;
+  navigation: any;
 };
 
-export default function RegisterScreen({ onNavigate }: Props) {
+export default function RegisterScreen({ navigation }: Props) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -84,104 +85,106 @@ export default function RegisterScreen({ onNavigate }: Props) {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.container}
       >
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          <View style={styles.header}>
-            <View style={styles.logoContainer}>
-              <UserPlus color={Theme.colors.primary} size={40} />
-            </View>
-            <Text style={styles.logoText}>LinkUp</Text>
-            <Text style={styles.tagline}>Join a community of professionals.</Text>
-          </View>
-
-          <View style={styles.form}>
-            <Text style={styles.title}>Create Account</Text>
-            <Text style={styles.subtitle}>Fill in your details to get started</Text>
-
-            <View style={styles.inputWrapper}>
-              <View style={[styles.inputContainer, errors.email && styles.inputError]}>
-                <Mail color={Theme.colors.textMuted} size={20} style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Email Address"
-                  placeholderTextColor={Theme.colors.textMuted}
-                  value={email}
-                  onChangeText={(text) => {
-                    setEmail(text);
-                    if (errors.email) setErrors({ ...errors, email: undefined });
-                  }}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  editable={!loading}
-                />
+        <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
+          <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+            <View style={styles.header}>
+              <View style={styles.logoContainer}>
+                <UserPlus color={Theme.colors.primary} size={40} />
               </View>
-              {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
+              <Text style={styles.logoText}>LinkUp</Text>
+              <Text style={styles.tagline}>Join a community of professionals.</Text>
             </View>
 
-            <View style={styles.inputWrapper}>
-              <View style={[styles.inputContainer, errors.password && styles.inputError]}>
-                <Lock color={Theme.colors.textMuted} size={20} style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Password"
-                  placeholderTextColor={Theme.colors.textMuted}
-                  value={password}
-                  onChangeText={(text) => {
-                    setPassword(text);
-                    if (errors.password) setErrors({ ...errors, password: undefined });
-                  }}
-                  secureTextEntry
-                  editable={!loading}
-                />
+            <View style={styles.form}>
+              <Text style={styles.title}>Create Account</Text>
+              <Text style={styles.subtitle}>Fill in your details to get started</Text>
+
+              <View style={styles.inputWrapper}>
+                <View style={[styles.inputContainer, errors.email && styles.inputError]}>
+                  <Mail color={Theme.colors.textMuted} size={20} style={styles.inputIcon} />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Email Address"
+                    placeholderTextColor={Theme.colors.textMuted}
+                    value={email}
+                    onChangeText={(text) => {
+                      setEmail(text);
+                      if (errors.email) setErrors({ ...errors, email: undefined });
+                    }}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    editable={!loading}
+                  />
+                </View>
+                {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
               </View>
-              {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
-            </View>
 
-            <View style={styles.inputWrapper}>
-              <View style={[styles.inputContainer, errors.confirmPassword && styles.inputError]}>
-                <CheckCircle2 color={Theme.colors.textMuted} size={20} style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Confirm Password"
-                  placeholderTextColor={Theme.colors.textMuted}
-                  value={confirmPassword}
-                  onChangeText={(text) => {
-                    setConfirmPassword(text);
-                    if (errors.confirmPassword) setErrors({ ...errors, confirmPassword: undefined });
-                  }}
-                  secureTextEntry
-                  editable={!loading}
-                />
+              <View style={styles.inputWrapper}>
+                <View style={[styles.inputContainer, errors.password && styles.inputError]}>
+                  <Lock color={Theme.colors.textMuted} size={20} style={styles.inputIcon} />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Password"
+                    placeholderTextColor={Theme.colors.textMuted}
+                    value={password}
+                    onChangeText={(text) => {
+                      setPassword(text);
+                      if (errors.password) setErrors({ ...errors, password: undefined });
+                    }}
+                    secureTextEntry
+                    editable={!loading}
+                  />
+                </View>
+                {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
               </View>
-              {errors.confirmPassword && <Text style={styles.errorText}>{errors.confirmPassword}</Text>}
-            </View>
 
-            <Pressable
-              style={({ pressed }) => [
-                styles.button,
-                (loading || pressed) && styles.buttonDisabled,
-              ]}
-              onPress={handleRegister}
-              disabled={loading}
-            >
-              {loading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <>
-                  <Text style={styles.buttonText}>Join LinkUp</Text>
-                  <ArrowRight color="#fff" size={20} style={styles.buttonIcon} />
-                </>
-              )}
-            </Pressable>
+              <View style={styles.inputWrapper}>
+                <View style={[styles.inputContainer, errors.confirmPassword && styles.inputError]}>
+                  <CheckCircle2 color={Theme.colors.textMuted} size={20} style={styles.inputIcon} />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Confirm Password"
+                    placeholderTextColor={Theme.colors.textMuted}
+                    value={confirmPassword}
+                    onChangeText={(text) => {
+                      setConfirmPassword(text);
+                      if (errors.confirmPassword) setErrors({ ...errors, confirmPassword: undefined });
+                    }}
+                    secureTextEntry
+                    editable={!loading}
+                  />
+                </View>
+                {errors.confirmPassword && <Text style={styles.errorText}>{errors.confirmPassword}</Text>}
+              </View>
 
-            <View style={styles.footer}>
-              <Text style={styles.footerText}>Already have an account?</Text>
-              <Pressable onPress={() => onNavigate('Login')}>
-                <Text style={styles.linkText}>Sign In</Text>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.button,
+                  (loading || pressed) && styles.buttonDisabled,
+                ]}
+                onPress={handleRegister}
+                disabled={loading}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <>
+                    <Text style={styles.buttonText}>Join LinkUp</Text>
+                    <ArrowRight color="#fff" size={20} style={styles.buttonIcon} />
+                  </>
+                )}
               </Pressable>
+
+              <View style={styles.footer}>
+                <Text style={styles.footerText}>Already have an account?</Text>
+                <Pressable onPress={() => navigation.navigate('Login')}>
+                  <Text style={styles.linkText}>Sign In</Text>
+                </Pressable>
+              </View>
             </View>
-          </View>
-        </ScrollView>
+          </ScrollView>
+        </SafeAreaView>
       </KeyboardAvoidingView>
     </TouchableWithoutFeedback>
   );
@@ -196,6 +199,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: Theme.spacing.lg,
     paddingTop: Theme.spacing.xxl,
     paddingBottom: Theme.spacing.lg,
+    maxWidth: 450,
+    width: '100%',
+    alignSelf: 'center',
   },
   header: {
     alignItems: 'center',

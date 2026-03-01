@@ -12,16 +12,17 @@ import {
   TouchableWithoutFeedback,
   Keyboard,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { Mail, Lock, LogIn, ArrowRight } from 'lucide-react-native';
 import { auth } from '../config/firebase';
 import { Theme } from '../theme/Theme';
 
 type Props = {
-  onNavigate: (screen: any, params?: any) => void;
+  navigation: any;
 };
 
-export default function LoginScreen({ onNavigate }: Props) {
+export default function LoginScreen({ navigation }: Props) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -72,85 +73,87 @@ export default function LoginScreen({ onNavigate }: Props) {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.container}
       >
-        <View style={styles.content}>
-          <View style={styles.header}>
-            <View style={styles.logoContainer}>
-              <LogIn color={Theme.colors.primary} size={40} />
-            </View>
-            <Text style={styles.logoText}>LinkUp</Text>
-            <Text style={styles.tagline}>Connect, share, and grow with your network.</Text>
-          </View>
-
-          <View style={styles.form}>
-            <Text style={styles.title}>Welcome Back</Text>
-            <Text style={styles.subtitle}>Enter your details to sign in</Text>
-
-            <View style={styles.inputWrapper}>
-              <View style={[styles.inputContainer, errors.email && styles.inputError]}>
-                <Mail color={errors.email ? Theme.colors.error : Theme.colors.textMuted} size={20} style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Email Address"
-                  placeholderTextColor={Theme.colors.textMuted}
-                  value={email}
-                  onChangeText={(text) => {
-                    setEmail(text);
-                    if (errors.email) setErrors({ ...errors, email: undefined });
-                  }}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  editable={!loading}
-                />
+        <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
+          <View style={styles.content}>
+            <View style={styles.header}>
+              <View style={styles.logoContainer}>
+                <LogIn color={Theme.colors.primary} size={40} />
               </View>
-              {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
+              <Text style={styles.logoText}>LinkUp</Text>
+              <Text style={styles.tagline}>Connect, share, and grow with your network.</Text>
             </View>
 
-            <View style={styles.inputWrapper}>
-              <View style={[styles.inputContainer, errors.password && styles.inputError]}>
-                <Lock color={errors.password ? Theme.colors.error : Theme.colors.textMuted} size={20} style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Password"
-                  placeholderTextColor={Theme.colors.textMuted}
-                  value={password}
-                  onChangeText={(text) => {
-                    setPassword(text);
-                    if (errors.password) setErrors({ ...errors, password: undefined });
-                  }}
-                  secureTextEntry
-                  editable={!loading}
-                />
+            <View style={styles.form}>
+              <Text style={styles.title}>Welcome Back</Text>
+              <Text style={styles.subtitle}>Enter your details to sign in</Text>
+
+              <View style={styles.inputWrapper}>
+                <View style={[styles.inputContainer, errors.email && styles.inputError]}>
+                  <Mail color={errors.email ? Theme.colors.error : Theme.colors.textMuted} size={20} style={styles.inputIcon} />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Email Address"
+                    placeholderTextColor={Theme.colors.textMuted}
+                    value={email}
+                    onChangeText={(text) => {
+                      setEmail(text);
+                      if (errors.email) setErrors({ ...errors, email: undefined });
+                    }}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    editable={!loading}
+                  />
+                </View>
+                {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
               </View>
-              {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
-            </View>
 
-            <Pressable
-              style={({ pressed }) => [
-                styles.button,
-                (loading || pressed) && styles.buttonDisabled,
-              ]}
-              onPress={handleLogin}
-              disabled={loading}
-            >
-              {loading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <>
-                  <Text style={styles.buttonText}>Sign In</Text>
-                  <ArrowRight color="#fff" size={20} style={styles.buttonIcon} />
-                </>
-              )}
-            </Pressable>
+              <View style={styles.inputWrapper}>
+                <View style={[styles.inputContainer, errors.password && styles.inputError]}>
+                  <Lock color={errors.password ? Theme.colors.error : Theme.colors.textMuted} size={20} style={styles.inputIcon} />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Password"
+                    placeholderTextColor={Theme.colors.textMuted}
+                    value={password}
+                    onChangeText={(text) => {
+                      setPassword(text);
+                      if (errors.password) setErrors({ ...errors, password: undefined });
+                    }}
+                    secureTextEntry
+                    editable={!loading}
+                  />
+                </View>
+                {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
+              </View>
 
-            <View style={styles.footer}>
-              <Text style={styles.footerText}>New to LinkUp?</Text>
-              <Pressable onPress={() => onNavigate('Register')}>
-                <Text style={styles.linkText}>Create an Account</Text>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.button,
+                  (loading || pressed) && styles.buttonDisabled,
+                ]}
+                onPress={handleLogin}
+                disabled={loading}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <>
+                    <Text style={styles.buttonText}>Sign In</Text>
+                    <ArrowRight color="#fff" size={20} style={styles.buttonIcon} />
+                  </>
+                )}
               </Pressable>
+
+              <View style={styles.footer}>
+                <Text style={styles.footerText}>New to LinkUp?</Text>
+                <Pressable onPress={() => navigation.navigate('Register')}>
+                  <Text style={styles.linkText}>Create an Account</Text>
+                </Pressable>
+              </View>
             </View>
           </View>
-        </View>
+        </SafeAreaView>
       </KeyboardAvoidingView>
     </TouchableWithoutFeedback>
   );
@@ -165,6 +168,9 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: Theme.spacing.lg,
     justifyContent: 'center',
+    maxWidth: 450,
+    width: '100%',
+    alignSelf: 'center',
   },
   header: {
     alignItems: 'center',
@@ -231,6 +237,14 @@ const styles = StyleSheet.create({
     borderRadius: Theme.borderRadius.md,
     paddingHorizontal: Theme.spacing.md,
     height: 56,
+  },
+  scrollContent: {
+    paddingHorizontal: Theme.spacing.lg,
+    paddingTop: Theme.spacing.xxl,
+    paddingBottom: Theme.spacing.lg,
+    maxWidth: 450,
+    width: '100%',
+    alignSelf: 'center',
   },
   inputIcon: {
     marginRight: Theme.spacing.sm,

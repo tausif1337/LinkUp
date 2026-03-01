@@ -13,6 +13,7 @@ import {
   Platform,
   Dimensions,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { User, signOut, updateProfile } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { Camera, Edit2, Shield, Bell, HelpCircle, ChevronRight, ArrowLeft, LogOut, Check, X, User as UserIcon } from 'lucide-react-native';
@@ -25,7 +26,7 @@ import { pickImage, uploadToCloudinary } from '../utils/imageUtils';
 
 type Props = {
   user: User;
-  onNavigate: (screen: any, params?: any) => void;
+  navigation: any;
 };
 
 type UserProfile = {
@@ -35,7 +36,7 @@ type UserProfile = {
   createdAt: string;
 };
 
-export default function ProfileScreen({ user, onNavigate }: Props) {
+export default function ProfileScreen({ user, navigation }: Props) {
   const [isInitializing, setIsInitializing] = useState(true);
   const [saving, setSaving] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -204,15 +205,12 @@ export default function ProfileScreen({ user, onNavigate }: Props) {
   }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
       >
         <View style={styles.header}>
-          <Pressable onPress={() => onNavigate('Feed')} style={styles.headerButton}>
-            <ArrowLeft color={Theme.colors.text} size={24} />
-          </Pressable>
           <Text style={styles.headerTitle}>Profile Settings</Text>
           <Pressable onPress={handleLogout} style={styles.logoutBtn}>
             <LogOut color={Theme.colors.error} size={20} />
@@ -352,7 +350,7 @@ export default function ProfileScreen({ user, onNavigate }: Props) {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </View>
+    </SafeAreaView>
   );
 }
 

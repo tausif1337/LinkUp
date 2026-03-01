@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, Pressable, Image, ActivityIndicator } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { User } from 'firebase/auth';
 import { collection, query, where, orderBy, onSnapshot, limit } from 'firebase/firestore';
 import { db } from '../config/firebase';
@@ -21,10 +22,10 @@ type Chat = {
 
 type Props = {
     user: User;
-    onNavigate: (screen: any, params?: any) => void;
+    navigation: any;
 };
 
-export default function MessagesScreen({ user, onNavigate }: Props) {
+export default function MessagesScreen({ user, navigation }: Props) {
     const [chats, setChats] = useState<Chat[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -61,7 +62,7 @@ export default function MessagesScreen({ user, onNavigate }: Props) {
         return (
             <Pressable
                 style={styles.chatCard}
-                onPress={() => onNavigate('Chat', { recipient: { uid: recipientUid, ...recipientInfo } })}
+                onPress={() => navigation.navigate('Chat', { recipient: { uid: recipientUid, ...recipientInfo } })}
             >
                 <View style={styles.avatarContainer}>
                     {recipientInfo.photoURL ? (
@@ -86,12 +87,9 @@ export default function MessagesScreen({ user, onNavigate }: Props) {
     };
 
     return (
-        <View style={styles.container}>
+        <SafeAreaView style={styles.container} edges={['top']}>
             {/* Header */}
             <View style={styles.header}>
-                <Pressable onPress={() => onNavigate('Feed')} style={styles.backButton}>
-                    <ChevronLeft size={24} color={Theme.colors.text} />
-                </Pressable>
                 <Text style={styles.headerTitle}>Messages</Text>
             </View>
 
@@ -112,7 +110,7 @@ export default function MessagesScreen({ user, onNavigate }: Props) {
                     contentContainerStyle={styles.listContainer}
                 />
             )}
-        </View>
+        </SafeAreaView>
     );
 }
 

@@ -13,6 +13,7 @@ import {
   Platform,
   Image
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { User } from 'firebase/auth';
 import { User as UserIcon, Bell, Search, LayoutGrid, MessageSquare, Image as ImageIcon, Heart, Share2, MoreVertical, X } from 'lucide-react-native';
 import { db } from '../config/firebase';
@@ -22,7 +23,7 @@ import { collection, addDoc, serverTimestamp, query, orderBy, onSnapshot } from 
 
 type Props = {
   user: User;
-  onNavigate: (screen: any, params?: any) => void;
+  navigation: any;
 };
 
 type Post = {
@@ -35,7 +36,7 @@ type Post = {
   createdAt: any;
 };
 
-export default function FeedScreen({ user, onNavigate }: Props) {
+export default function FeedScreen({ user, navigation }: Props) {
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [posts, setPosts] = useState<Post[]>([]);
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -176,7 +177,7 @@ export default function FeedScreen({ user, onNavigate }: Props) {
         </Pressable>
         <Pressable
           style={styles.postAction}
-          onPress={() => onNavigate('Chat', { recipient: { uid: item.userId, displayName: item.userName, photoURL: item.userPhoto } })}
+          onPress={() => navigation.navigate('Chat', { recipient: { uid: item.userId, displayName: item.userName, photoURL: item.userPhoto } })}
         >
           <MessageSquare color={Theme.colors.textSecondary} size={22} />
         </Pressable>
@@ -200,13 +201,13 @@ export default function FeedScreen({ user, onNavigate }: Props) {
           </Pressable>
           <Pressable
             style={styles.iconButton}
-            onPress={() => onNavigate('Messages')}
+            onPress={() => navigation.navigate('Messages')}
           >
             <Bell color={Theme.colors.textSecondary} size={22} />
           </Pressable>
           <Pressable
             style={styles.profileAvatar}
-            onPress={() => onNavigate('Profile')}
+            onPress={() => navigation.navigate('Profile')}
           >
             {user.photoURL ? (
               <Image source={{ uri: user.photoURL }} style={styles.headerAvatarImage} />
@@ -238,7 +239,7 @@ export default function FeedScreen({ user, onNavigate }: Props) {
 
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <FlatList
         data={posts}
         renderItem={renderPost}
@@ -321,7 +322,7 @@ export default function FeedScreen({ user, onNavigate }: Props) {
           </View>
         </KeyboardAvoidingView>
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -374,6 +375,9 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingBottom: Theme.spacing.xl,
+    maxWidth: 600,
+    width: '100%',
+    alignSelf: 'center',
   },
   innerContent: {
     paddingHorizontal: Theme.spacing.lg,
@@ -482,7 +486,7 @@ const styles = StyleSheet.create({
   },
   postImage: {
     width: '100%',
-    height: 300,
+    aspectRatio: 1, // Square posts look better across all devices
     backgroundColor: '#F1F5F9',
   },
   postActions: {

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, Pressable, Platform, KeyboardAvoidingView } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { GiftedChat, IMessage, Send, Bubble, InputToolbar } from 'react-native-gifted-chat';
 import { User } from 'firebase/auth';
 import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, doc, setDoc, updateDoc } from 'firebase/firestore';
@@ -9,15 +10,12 @@ import { ChevronLeft, Send as SendIcon } from 'lucide-react-native';
 
 type Props = {
     user: User;
-    recipient: {
-        uid: string;
-        displayName: string;
-        photoURL?: string;
-    };
-    onNavigate: (screen: any, params?: any) => void;
+    route: any;
+    navigation: any;
 };
 
-export default function ChatScreen({ user, recipient, onNavigate }: Props) {
+export default function ChatScreen({ user, route, navigation }: Props) {
+    const { recipient } = route.params;
     const [messages, setMessages] = useState<IMessage[]>([]);
 
     const chatId = [user.uid, recipient.uid].sort().join('_');
@@ -129,10 +127,10 @@ export default function ChatScreen({ user, recipient, onNavigate }: Props) {
     };
 
     return (
-        <View style={styles.container}>
+        <SafeAreaView style={styles.container} edges={['top']}>
             {/* Header */}
             <View style={styles.header}>
-                <Pressable onPress={() => onNavigate('Messages')} style={styles.backButton}>
+                <Pressable onPress={() => navigation.goBack()} style={styles.backButton}>
                     <ChevronLeft size={24} color={Theme.colors.text} />
                 </Pressable>
                 <View style={styles.headerInfo}>
@@ -158,7 +156,7 @@ export default function ChatScreen({ user, recipient, onNavigate }: Props) {
                 isSendButtonAlwaysVisible
             />
             {Platform.OS === 'android' && <KeyboardAvoidingView behavior="padding" />}
-        </View>
+        </SafeAreaView>
     );
 }
 
