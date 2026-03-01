@@ -4,9 +4,9 @@ import {
     Pressable, Image, ActivityIndicator, TextInput,
     Dimensions, PixelRatio,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { User } from 'firebase/auth';
-import { collection, query, where, orderBy, onSnapshot, limit } from 'firebase/firestore';
+import { collection, query, where, orderBy, onSnapshot } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { Theme } from '../theme/Theme';
 import { MessageCircle, User as UserIcon, Search, Edit } from 'lucide-react-native';
@@ -29,14 +29,12 @@ export default function MessagesScreen({ user, navigation }: Props) {
     const [chats, setChats] = useState<Chat[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
-    const insets = useSafeAreaInsets();
 
     useEffect(() => {
         const q = query(
             collection(db, 'chats'),
             where('users', 'array-contains', user.uid),
-            orderBy('lastUpdate', 'desc'),
-            limit(30)
+            orderBy('lastUpdate', 'desc')
         );
         return onSnapshot(q, snap => {
             setChats(snap.docs.map(d => ({ id: d.id, ...d.data() })) as Chat[]);
