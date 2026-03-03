@@ -8,6 +8,8 @@ import {
     onSnapshot, serverTimestamp, doc, setDoc
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
+import { useNotification } from '../context/NotificationContext';
+import { useToast } from '../context/ToastContext';
 import { Theme } from '../theme/Theme';
 import { ChevronLeft, Send as SendIcon, Video, User as UserIcon } from 'lucide-react-native';
 
@@ -111,8 +113,15 @@ export default function ChatScreen({ user, route, navigation }: Props) {
     const [messages, setMessages] = useState<IMessage[]>([]);
     const insets = useSafeAreaInsets();
     const sendScale = useSharedValue(1);
+    const { setCurrentChatId } = useNotification();
+    const showToast = useToast()?.showToast;
 
     const chatId = [user.uid, recipient.uid].sort().join('_');
+
+    useEffect(() => {
+        setCurrentChatId(chatId);
+        return () => setCurrentChatId(null);
+    }, [chatId, setCurrentChatId]);
 
     // Dynamic header height (safe-area + inner content)
     const HEADER_HEIGHT = insets.top + 64;
@@ -133,7 +142,7 @@ export default function ChatScreen({ user, route, navigation }: Props) {
                 } as IMessage;
             }));
         });
-    }, [chatId]);
+    }, [chatId, setCurrentChatId]);
 
     const onSend = useCallback(async (newMessages: IMessage[] = []) => {
         const { _id, text, user: msgUser } = newMessages[0];
@@ -151,8 +160,11 @@ export default function ChatScreen({ user, route, navigation }: Props) {
                 lastUpdate: serverTimestamp(),
                 users: [user.uid, recipient.uid],
             }, { merge: true });
-        } catch (e) { console.error(e); }
-    }, [chatId, user, recipient]);
+        } catch (e) {
+            console.error(e);
+            showToast?.('Failed to send message. Try again.', 'error');
+        }
+    }, [chatId, user, recipient, showToast]);
 
     return (
         <View style={styles.screen}>

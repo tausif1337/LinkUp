@@ -18,7 +18,7 @@ import { User, signOut, updateProfile } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { Camera, Edit2, Shield, Bell, HelpCircle, ChevronRight, ArrowLeft, LogOut, Check, X, MessageCircle, User as UserIcon } from 'lucide-react-native';
 import { auth, db } from '../config/firebase';
-
+import { useToast } from '../context/ToastContext';
 import { Theme } from '../theme/Theme';
 import { pickImage, uploadToCloudinary } from '../utils/imageUtils';
 
@@ -38,6 +38,7 @@ type UserProfile = {
 };
 
 export default function ProfileScreen({ user, navigation, route }: Props) {
+  const showToast = useToast()?.showToast;
   const otherUserId = route?.params?.userId;
   const isOtherUser = otherUserId && otherUserId !== user.uid;
   const targetUid = isOtherUser ? otherUserId : user.uid;
@@ -113,7 +114,7 @@ export default function ProfileScreen({ user, navigation, route }: Props) {
       }
     } catch (error: any) {
       console.warn('Notice loading profile:', error);
-      Alert.alert('Database Notice', 'Failed to load profile data.');
+      showToast?.('Failed to load profile data.', 'error');
     } finally {
       setIsInitializing(false);
     }
@@ -144,7 +145,7 @@ export default function ProfileScreen({ user, navigation, route }: Props) {
         try {
           finalPhotoURL = await uploadToCloudinary(editedProfile.photoURL);
         } catch (uploadError: any) {
-          Alert.alert('Upload Error', 'Failed to upload profile image to Cloudinary.');
+          showToast?.('Failed to upload profile image.', 'error');
           setSaving(false);
           return;
         }
@@ -169,10 +170,10 @@ export default function ProfileScreen({ user, navigation, route }: Props) {
       setProfile(updatedProfile);
       setEditedProfile(updatedProfile);
       setIsEditing(false);
-      Alert.alert('Success', 'Profile updated successfully!');
+      showToast?.('Profile updated successfully!', 'success');
     } catch (error: any) {
       console.error('Save profile error:', error);
-      Alert.alert('Error', 'Failed to save profile. Please try again.');
+      showToast?.('Failed to save profile. Please try again.', 'error');
     } finally {
       setSaving(false);
     }
@@ -205,7 +206,7 @@ export default function ProfileScreen({ user, navigation, route }: Props) {
     try {
       await signOut(auth);
     } catch (error) {
-      Alert.alert('Error', 'Failed to sign out.');
+      showToast?.('Failed to sign out.', 'error');
     }
   };
 

@@ -24,6 +24,11 @@ import FeedScreen from './screens/FeedScreen.tsx';
 import ProfileScreen from './screens/ProfileScreen.tsx';
 import MessagesScreen from './screens/MessagesScreen.tsx';
 import ChatScreen from './screens/ChatScreen.tsx';
+import NotificationsScreen from './screens/NotificationsScreen.tsx';
+import { NotificationProvider } from './context/NotificationContext';
+import { ToastProvider } from './context/ToastContext';
+import NotificationToast from './components/NotificationToast';
+import FeedbackToast from './components/FeedbackToast';
 
 import { useFonts, Inter_400Regular, Inter_500Medium, Inter_700Bold } from '@expo-google-fonts/inter';
 import { Outfit_700Bold } from '@expo-google-fonts/outfit';
@@ -226,28 +231,39 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <NavigationContainer>
-        <Stack.Navigator screenOptions={{ headerShown: false }}>
-          {user ? (
-            <>
-              <Stack.Screen name="MainTabs">
-                {(props) => <TabNavigator {...props} user={user} />}
-              </Stack.Screen>
-              <Stack.Screen name="Chat">
-                {(props) => <ChatScreen {...props} user={user} />}
-              </Stack.Screen>
-              <Stack.Screen name="UserProfile">
-                {(props) => <ProfileScreen {...props} user={user} />}
-              </Stack.Screen>
-            </>
-          ) : (
-            <>
-              <Stack.Screen name="Login" component={LoginScreen} />
-              <Stack.Screen name="Register" component={RegisterScreen} />
-            </>
-          )}
-        </Stack.Navigator>
-      </NavigationContainer>
+      <ToastProvider>
+        <View style={styles.appWrap}>
+          <NavigationContainer>
+            {user ? (
+              <NotificationProvider user={user}>
+                <View style={styles.appWrap}>
+                  <Stack.Navigator screenOptions={{ headerShown: false }}>
+                    <Stack.Screen name="MainTabs">
+                      {(props) => <TabNavigator {...props} user={user} />}
+                    </Stack.Screen>
+                    <Stack.Screen name="Chat">
+                      {(props) => <ChatScreen {...props} user={user} />}
+                    </Stack.Screen>
+                    <Stack.Screen name="UserProfile">
+                      {(props) => <ProfileScreen {...props} user={user} />}
+                    </Stack.Screen>
+                    <Stack.Screen name="Notifications">
+                      {(props) => <NotificationsScreen {...props} user={user} />}
+                    </Stack.Screen>
+                  </Stack.Navigator>
+                  <NotificationToast />
+                </View>
+              </NotificationProvider>
+            ) : (
+              <Stack.Navigator screenOptions={{ headerShown: false }}>
+                <Stack.Screen name="Login" component={LoginScreen} />
+                <Stack.Screen name="Register" component={RegisterScreen} />
+              </Stack.Navigator>
+            )}
+          </NavigationContainer>
+          <FeedbackToast />
+        </View>
+      </ToastProvider>
     </SafeAreaProvider>
   );
 }
@@ -255,6 +271,9 @@ export default function App() {
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
+  appWrap: {
+    flex: 1,
+  },
   // Tab bar container
   tabBar: {
     flexDirection: 'row',

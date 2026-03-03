@@ -5,7 +5,6 @@ import {
   TextInput,
   StyleSheet,
   Pressable,
-  Alert,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
@@ -17,6 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { UserPlus, Mail, Lock, CheckCircle2, ArrowRight } from 'lucide-react-native';
 import { auth } from '../config/firebase';
+import { useToast } from '../context/ToastContext';
 import { Theme } from '../theme/Theme';
 
 type Props = {
@@ -24,6 +24,7 @@ type Props = {
 };
 
 export default function RegisterScreen({ navigation }: Props) {
+  const showToast = useToast()?.showToast;
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -73,7 +74,7 @@ export default function RegisterScreen({ navigation }: Props) {
       } else if (error.code === 'auth/weak-password') {
         message = 'Password is too weak.';
       }
-      Alert.alert('Registration Error', message);
+      showToast?.(message, 'error');
     } finally {
       setLoading(false);
     }

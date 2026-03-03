@@ -5,7 +5,6 @@ import {
   TextInput,
   StyleSheet,
   Pressable,
-  Alert,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
@@ -16,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { Mail, Lock, LogIn, ArrowRight } from 'lucide-react-native';
 import { auth } from '../config/firebase';
+import { useToast } from '../context/ToastContext';
 import { Theme } from '../theme/Theme';
 
 type Props = {
@@ -23,6 +23,7 @@ type Props = {
 };
 
 export default function LoginScreen({ navigation }: Props) {
+  const showToast = useToast()?.showToast;
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -61,7 +62,7 @@ export default function LoginScreen({ navigation }: Props) {
       } else if (error.code === 'auth/invalid-email') {
         message = 'Invalid email address.';
       }
-      Alert.alert('Login Error', message);
+      showToast?.(message, 'error');
     } finally {
       setLoading(false);
     }

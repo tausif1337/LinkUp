@@ -17,6 +17,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { User } from 'firebase/auth';
 import { User as UserIcon, Bell, Search, LayoutGrid, MessageSquare, Image as ImageIcon, Heart, Share2, MoreVertical, X } from 'lucide-react-native';
 import { db } from '../config/firebase';
+import { useToast } from '../context/ToastContext';
+import { useNotification } from '../context/NotificationContext';
 import { Theme } from '../theme/Theme';
 import { pickImage, uploadToCloudinary } from '../utils/imageUtils';
 import { collection, addDoc, serverTimestamp, query, orderBy, onSnapshot } from 'firebase/firestore';
@@ -37,6 +39,9 @@ type Post = {
 };
 
 export default function FeedScreen({ user, navigation }: Props) {
+  const showToast = useToast()?.showToast;
+  const { notificationsList } = useNotification();
+  const notificationCount = notificationsList.filter((n) => n.variant === 'received').length;
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [posts, setPosts] = useState<Post[]>([]);
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -70,7 +75,7 @@ export default function FeedScreen({ user, navigation }: Props) {
         console.error('Error fetching posts:', error);
         setIsInitialLoading(false);
         setRefreshing(false);
-        Alert.alert('Error', 'Failed to load posts. Please check your connection.');
+        showToast?.('Failed to load posts. Please check your connection.', 'error');
       }
     );
 
@@ -133,10 +138,10 @@ export default function FeedScreen({ user, navigation }: Props) {
       setCaption('');
       setSelectedImage(null);
       setIsModalVisible(false);
-      Alert.alert('Success', 'Post created successfully!');
+      showToast?.('Post created successfully!', 'success');
     } catch (error) {
       console.error('Create post error:', error);
-      Alert.alert('Error', 'Failed to create post. Please try again.');
+      showToast?.('Failed to create post. Please try again.', 'error');
     } finally {
       setIsUploading(false);
     }
@@ -207,9 +212,18 @@ export default function FeedScreen({ user, navigation }: Props) {
           </Pressable>
           <Pressable
             style={({ pressed }) => [styles.iconButton, pressed && { opacity: 0.7 }]}
-            onPress={() => navigation.navigate('Messages')}
+            onPress={() => navigation.navigate('Notifications')}
           >
-            <Bell color={Theme.colors.textSecondary} size={22} />
+            <View style={styles.bellWrap}>
+              <Bell color={Theme.colors.textSecondary} size={22} />
+              {notificationCount > 0 && (
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText} numberOfLines={1}>
+                    {notificationCount > 99 ? '99+' : notificationCount}
+                  </Text>
+                </View>
+              )}
+            </View>
           </Pressable>
           <Pressable
             style={({ pressed }) => [styles.profileAvatar, pressed && { opacity: 0.7 }]}
@@ -374,6 +388,26 @@ const styles = StyleSheet.create({
     backgroundColor: Theme.colors.background,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  bellWrap: {
+    position: 'relative',
+  },
+  badge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: Theme.colors.error,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  badgeText: {
+    fontSize: 11,
+    fontFamily: Theme.fonts.bold,
+    color: '#fff',
   },
   profileAvatar: {
     width: 40,
