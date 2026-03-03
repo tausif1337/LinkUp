@@ -25,9 +25,8 @@ import ProfileScreen from './screens/ProfileScreen.tsx';
 import MessagesScreen from './screens/MessagesScreen.tsx';
 import ChatScreen from './screens/ChatScreen.tsx';
 import NotificationsScreen from './screens/NotificationsScreen.tsx';
-import { NotificationProvider } from './context/NotificationContext';
+import { NotificationProvider, useNotification } from './context/NotificationContext';
 import { ToastProvider } from './context/ToastContext';
-import NotificationToast from './components/NotificationToast';
 import FeedbackToast from './components/FeedbackToast';
 
 import { useFonts, Inter_400Regular, Inter_500Medium, Inter_700Bold } from '@expo-google-fonts/inter';
@@ -84,10 +83,12 @@ function TabBarButton({
   item,
   isFocused,
   onPress,
+  badgeCount,
 }: {
   item: TabItem;
   isFocused: boolean;
   onPress: () => void;
+  badgeCount?: number;
 }) {
   const scale = useSharedValue(1);
   const pillWidth = useSharedValue(isFocused ? 1 : 0);
@@ -112,6 +113,8 @@ function TabBarButton({
     transform: [{ scaleX: pillWidth.value }],
   }));
 
+  const showBadge = badgeCount !== undefined && badgeCount > 0;
+
   return (
     <Pressable
       onPress={handlePress}
@@ -125,6 +128,13 @@ function TabBarButton({
         <Animated.View style={[styles.activePill, animatedPill]} />
         <View style={styles.iconWrap}>
           {item.icon(isFocused)}
+          {showBadge && (
+            <View style={styles.tabBadge}>
+              <Text style={styles.tabBadgeText} numberOfLines={1}>
+                {badgeCount! > 99 ? '99+' : badgeCount}
+              </Text>
+            </View>
+          )}
         </View>
         <Text style={[styles.tabLabel, isFocused && styles.tabLabelActive]}>
           {item.label}
@@ -136,6 +146,10 @@ function TabBarButton({
 
 function CustomTabBar({ state, navigation }: any) {
   const insets = useSafeAreaInsets();
+  const { notificationsList } = useNotification();
+  const messageCount = notificationsList.filter(
+    (n) => n.variant === 'received' && !n.read
+  ).length;
 
   return (
     <View style={[styles.tabBar, { paddingBottom: insets.bottom > 0 ? insets.bottom : 12 }]}>
@@ -144,6 +158,7 @@ function CustomTabBar({ state, navigation }: any) {
           key={item.name}
           item={item}
           isFocused={state.index === index}
+          badgeCount={item.name === 'Messages' ? messageCount : undefined}
           onPress={() => {
             const event = navigation.emit({
               type: 'tabPress',
@@ -251,7 +266,6 @@ export default function App() {
                       {(props) => <NotificationsScreen {...props} user={user} />}
                     </Stack.Screen>
                   </Stack.Navigator>
-                  <NotificationToast />
                 </View>
               </NotificationProvider>
             ) : (
@@ -319,6 +333,24 @@ const styles = StyleSheet.create({
     height: 24,
     justifyContent: 'center',
     alignItems: 'center',
+    position: 'relative',
+  },
+  tabBadge: {
+    position: 'absolute',
+    top: -6,
+    right: -8,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: Theme.colors.error,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  tabBadgeText: {
+    fontSize: 10,
+    fontFamily: Theme.fonts.bold,
+    color: '#fff',
   },
 
   tabLabel: {
