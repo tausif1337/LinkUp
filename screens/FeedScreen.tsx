@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { User } from 'firebase/auth';
-import { User as UserIcon, Bell, Search, LayoutGrid, MessageSquare, Image as ImageIcon, Heart, Share2, MoreVertical, X } from 'lucide-react-native';
+import { User as UserIcon, Bell, Search, MessageSquare, Image as ImageIcon, Heart, Share2, MoreVertical, X } from 'lucide-react-native';
 import { db } from '../config/firebase';
 import { useToast } from '../context/ToastContext';
 import { useNotification } from '../context/NotificationContext';
@@ -242,24 +242,14 @@ export default function FeedScreen({ user, navigation }: Props) {
 
       <View style={styles.innerContent}>
         <View style={styles.welcomeCard}>
-          <View style={styles.welcomeInfo}>
-            <Text style={styles.welcomeTitle}>Share your world</Text>
-            <Text style={styles.welcomeSubtitle}>How are you feeling today?</Text>
-            <Pressable
-              style={({ pressed }) => [styles.exploreBtn, pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] }]}
-              onPress={() => setIsModalVisible(true)}
-            >
-              <Text style={styles.exploreBtnText}>Create Post</Text>
-            </Pressable>
-          </View>
-          <View style={styles.welcomeBgBlob} />
-          <LayoutGrid color="#fff" size={80} opacity={0.15} style={styles.bgIcon} />
-        </View>
-
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Recent Updates</Text>
-          <Pressable>
-            <Text style={styles.seeAllLink}>See everything</Text>
+          <Text style={styles.welcomeTitle} numberOfLines={1} ellipsizeMode="tail">
+            Share what's on your mind
+          </Text>
+          <Pressable
+            style={({ pressed }) => [styles.createPostBtn, pressed && styles.createPostBtnPressed]}
+            onPress={() => setIsModalVisible(true)}
+          >
+            <Text style={styles.createPostBtnText}>Create Post</Text>
           </Pressable>
         </View>
       </View>
@@ -433,63 +423,43 @@ const styles = StyleSheet.create({
   },
   welcomeCard: {
     backgroundColor: Theme.colors.primary,
-    borderRadius: Theme.borderRadius.xxl,
-    padding: Theme.spacing.xl,
+    borderRadius: Theme.borderRadius.lg,
+    paddingVertical: 10,
+    paddingHorizontal: Theme.spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
-    overflow: 'hidden',
-    position: 'relative',
-    marginTop: Theme.spacing.md,
-    marginBottom: Theme.spacing.xl,
-    elevation: 8,
+    justifyContent: 'space-between',
+    gap: Theme.spacing.sm,
+    marginTop: Theme.spacing.xs,
+    marginBottom: Theme.spacing.sm,
+    minHeight: 44,
+    elevation: 4,
     shadowColor: Theme.colors.primary,
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.3,
-    shadowRadius: 15,
-  },
-  welcomeBgBlob: {
-    position: 'absolute',
-    top: -50,
-    right: -50,
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    zIndex: 0,
-  },
-  welcomeInfo: {
-    flex: 1,
-    zIndex: 1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
   },
   welcomeTitle: {
-    fontSize: 24,
-    fontFamily: Theme.fonts.display,
-    color: '#fff',
-    marginBottom: Theme.spacing.xs,
-  },
-  welcomeSubtitle: {
-    fontSize: 14,
+    flex: 1,
+    fontSize: 15,
     fontFamily: Theme.fonts.regular,
-    color: 'rgba(255,255,255,0.8)',
-    marginBottom: Theme.spacing.lg,
+    color: 'rgba(255,255,255,0.98)',
+    minWidth: 0,
   },
-  exploreBtn: {
+  createPostBtn: {
     backgroundColor: '#fff',
+    paddingVertical: 8,
     paddingHorizontal: Theme.spacing.md,
-    paddingVertical: Theme.spacing.sm,
-    borderRadius: Theme.borderRadius.md,
-    alignSelf: 'flex-start',
+    borderRadius: Theme.borderRadius.full,
   },
-  exploreBtnText: {
+  createPostBtnPressed: {
+    opacity: 0.9,
+    transform: [{ scale: 0.98 }],
+  },
+  createPostBtnText: {
     color: Theme.colors.primary,
     fontFamily: Theme.fonts.bold,
     fontSize: 14,
-  },
-  bgIcon: {
-    position: 'absolute',
-    right: -10,
-    bottom: -10,
-    zIndex: 0,
   },
   sectionHeader: {
     flexDirection: 'row',
