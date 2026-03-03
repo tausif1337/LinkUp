@@ -32,13 +32,12 @@ function formatNotificationTime(date: Date): string {
 }
 
 export default function NotificationsScreen({ user, navigation }: Props) {
-  const { notificationsList, hideNotification, clearNotification, clearAllNotifications, markAsRead } = useNotification();
+  const { notificationsList, clearNotification, clearAllNotifications, markAsRead } = useNotification();
   const receivedOnly = notificationsList.filter((n) => n.variant === 'received');
 
   const onPressItem = (item: StoredNotification) => {
     if (item.variant === 'received') {
       markAsRead(item.id);
-      hideNotification();
       navigation.navigate('Chat', {
         recipient: {
           uid: item.senderId,

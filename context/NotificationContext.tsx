@@ -37,12 +37,9 @@ export type StoredNotification = InAppNotification & {
 };
 
 type NotificationContextType = {
-  notification: InAppNotification | null;
   notificationsList: StoredNotification[];
-  showNotification: (data: InAppNotification) => void;
   addReceivedNotification: (data: InAppNotification) => void;
   markAsRead: (id: string) => void;
-  hideNotification: () => void;
   clearNotification: (id: string) => void;
   clearAllNotifications: () => void;
   currentChatId: string | null;
@@ -58,11 +55,6 @@ export function useNotification() {
 }
 
 type Props = { user: User; children: React.ReactNode };
-
-let notificationIdCounter = 0;
-function nextId() {
-  return `notif_${Date.now()}_${++notificationIdCounter}`;
-}
 
 function docToStored(docSnap: { id: string; data: () => Record<string, unknown> }): StoredNotification {
   const d = docSnap.data();
@@ -82,13 +74,11 @@ function docToStored(docSnap: { id: string; data: () => Record<string, unknown> 
 }
 
 export function NotificationProvider({ user, children }: Props) {
-  const [notification, setNotification] = useState<InAppNotification | null>(null);
   const [notificationsList, setNotificationsList] = useState<StoredNotification[]>([]);
   const [currentChatId, setCurrentChatIdState] = useState<string | null>(null);
   const initialLoadDone = useRef<Record<string, boolean>>({});
   const listenersByChatId = useRef<Record<string, () => void>>({});
 
-  const hideNotification = useCallback(() => setNotification(null), []);
   const setCurrentChatId = useCallback((id: string | null) => setCurrentChatIdState(id), []);
 
   const clearNotification = useCallback(
@@ -123,17 +113,8 @@ export function NotificationProvider({ user, children }: Props) {
     [user.uid]
   );
 
-  const showNotification = useCallback((data: InAppNotification) => {
-    setNotification(data);
-    const t = setTimeout(() => setNotification((n) => (n && n.chatId === data.chatId ? null : n)), 4000);
-    return () => clearTimeout(t);
-  }, []);
-
   const addReceivedNotification = useCallback(
     async (data: InAppNotification) => {
-      setNotification(data);
-      const t = setTimeout(() => setNotification((n) => (n && n.chatId === data.chatId ? null : n)), 4000);
-      setTimeout(() => clearTimeout(t), 4100);
       try {
         await addDoc(notificationsRef(user.uid), {
           variant: data.variant,
@@ -241,12 +222,9 @@ export function NotificationProvider({ user, children }: Props) {
   }, [user.uid, addReceivedNotification]);
 
   const value: NotificationContextType = {
-    notification,
     notificationsList,
-    showNotification,
     addReceivedNotification,
     markAsRead,
-    hideNotification,
     clearNotification,
     clearAllNotifications,
     currentChatId,
