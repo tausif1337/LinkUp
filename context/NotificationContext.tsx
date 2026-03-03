@@ -1,7 +1,25 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import { User } from 'firebase/auth';
-import { collection, query, where, orderBy, limit, onSnapshot } from 'firebase/firestore';
+import {
+  collection,
+  query,
+  where,
+  orderBy,
+  limit,
+  onSnapshot,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  getDocs,
+  doc,
+  serverTimestamp,
+  Timestamp,
+} from 'firebase/firestore';
 import { db } from '../config/firebase';
+
+function notificationsRef(uid: string) {
+  return collection(db, 'users', uid, 'notifications');
+}
 
 export type InAppNotification = {
   variant: 'received' | 'sent';
@@ -15,12 +33,15 @@ export type InAppNotification = {
 export type StoredNotification = InAppNotification & {
   id: string;
   createdAt: Date;
+  read: boolean;
 };
 
 type NotificationContextType = {
   notification: InAppNotification | null;
   notificationsList: StoredNotification[];
   showNotification: (data: InAppNotification) => void;
+  addReceivedNotification: (data: InAppNotification) => void;
+  markAsRead: (id: string) => void;
   hideNotification: () => void;
   clearNotification: (id: string) => void;
   clearAllNotifications: () => void;
@@ -43,41 +64,111 @@ function nextId() {
   return `notif_${Date.now()}_${++notificationIdCounter}`;
 }
 
+function docToStored(docSnap: { id: string; data: () => Record<string, unknown> }): StoredNotification {
+  const d = docSnap.data();
+  const createdAt = d.createdAt instanceof Timestamp ? d.createdAt.toDate() : new Date();
+  const senderAvatar = d.senderAvatar;
+  return {
+    id: docSnap.id,
+    variant: (d.variant as 'received' | 'sent') ?? 'received',
+    chatId: (d.chatId as string) ?? '',
+    senderId: (d.senderId as string) ?? '',
+    senderName: (d.senderName as string) ?? 'Someone',
+    senderAvatar: typeof senderAvatar === 'string' ? senderAvatar : undefined,
+    text: (d.text as string) ?? '',
+    createdAt,
+    read: (d.read as boolean) ?? false,
+  };
+}
+
 export function NotificationProvider({ user, children }: Props) {
   const [notification, setNotification] = useState<InAppNotification | null>(null);
   const [notificationsList, setNotificationsList] = useState<StoredNotification[]>([]);
   const [currentChatId, setCurrentChatIdState] = useState<string | null>(null);
   const initialLoadDone = useRef<Record<string, boolean>>({});
-  const unsubscribes = useRef<(() => void)[]>([]);
+  const listenersByChatId = useRef<Record<string, () => void>>({});
 
   const hideNotification = useCallback(() => setNotification(null), []);
   const setCurrentChatId = useCallback((id: string | null) => setCurrentChatIdState(id), []);
 
-  const clearNotification = useCallback((id: string) => {
-    setNotificationsList((prev) => prev.filter((n) => n.id !== id));
-  }, []);
+  const clearNotification = useCallback(
+    async (id: string) => {
+      try {
+        await deleteDoc(doc(db, 'users', user.uid, 'notifications', id));
+      } catch (e) {
+        console.error('clearNotification', e);
+      }
+    },
+    [user.uid]
+  );
 
-  const clearAllNotifications = useCallback(() => {
-    setNotificationsList([]);
-  }, []);
+  const clearAllNotifications = useCallback(async () => {
+    try {
+      const ref = notificationsRef(user.uid);
+      const snap = await getDocs(ref);
+      await Promise.all(snap.docs.map((d) => deleteDoc(doc(db, 'users', user.uid, 'notifications', d.id))));
+    } catch (e) {
+      console.error('clearAllNotifications', e);
+    }
+  }, [user.uid]);
+
+  const markAsRead = useCallback(
+    async (id: string) => {
+      try {
+        await updateDoc(doc(db, 'users', user.uid, 'notifications', id), { read: true });
+      } catch (e) {
+        console.error('markAsRead', e);
+      }
+    },
+    [user.uid]
+  );
 
   const showNotification = useCallback((data: InAppNotification) => {
     setNotification(data);
-    const stored: StoredNotification = {
-      ...data,
-      id: nextId(),
-      createdAt: new Date(),
-    };
-    setNotificationsList((prev) => [stored, ...prev]);
-    // Auto-dismiss toast after 4 seconds
-    const t = setTimeout(() => setNotification(n => (n && n.chatId === data.chatId ? null : n)), 4000);
+    const t = setTimeout(() => setNotification((n) => (n && n.chatId === data.chatId ? null : n)), 4000);
     return () => clearTimeout(t);
   }, []);
+
+  const addReceivedNotification = useCallback(
+    async (data: InAppNotification) => {
+      setNotification(data);
+      const t = setTimeout(() => setNotification((n) => (n && n.chatId === data.chatId ? null : n)), 4000);
+      setTimeout(() => clearTimeout(t), 4100);
+      try {
+        await addDoc(notificationsRef(user.uid), {
+          variant: data.variant,
+          chatId: data.chatId,
+          senderId: data.senderId,
+          senderName: data.senderName,
+          senderAvatar: data.senderAvatar ?? null,
+          text: data.text,
+          createdAt: serverTimestamp(),
+          read: false,
+        });
+      } catch (e) {
+        console.error('addReceivedNotification', e);
+      }
+    },
+    [user.uid]
+  );
 
   const currentChatIdRef = useRef<string | null>(null);
   currentChatIdRef.current = currentChatId;
 
+  // Stream notifications from Firebase (source of truth for list + read status)
   useEffect(() => {
+    const ref = notificationsRef(user.uid);
+    const q = query(ref, orderBy('createdAt', 'desc'));
+    const unsub = onSnapshot(q, (snap) => {
+      const list = snap.docs.map((d) => docToStored(d));
+      setNotificationsList(list);
+    }, (err) => console.error('notifications onSnapshot', err));
+    return () => unsub();
+  }, [user.uid]);
+
+  // Message listeners: only add/remove per chat when chat list changes (avoids duplicate on same message)
+  useEffect(() => {
+
     const q = query(
       collection(db, 'chats'),
       where('users', 'array-contains', user.uid),
@@ -85,12 +176,21 @@ export function NotificationProvider({ user, children }: Props) {
     );
 
     const unsubscribeChats = onSnapshot(q, (snap) => {
-      const chatIds = snap.docs.map((d) => d.id);
+      const newChatIds = snap.docs.map((d) => d.id);
+      const current = listenersByChatId.current;
 
-      unsubscribes.current.forEach((unsub) => unsub());
-      unsubscribes.current = [];
+      // Remove listeners for chats that are no longer in the list
+      Object.keys(current).forEach((chatId) => {
+        if (!newChatIds.includes(chatId)) {
+          current[chatId]();
+          delete current[chatId];
+        }
+      });
 
-      chatIds.forEach((chatId) => {
+      // Add listeners only for new chats we don't have yet
+      newChatIds.forEach((chatId) => {
+        if (current[chatId]) return;
+
         const messagesRef = collection(db, 'chats', chatId, 'messages');
         const msgQuery = query(
           messagesRef,
@@ -117,7 +217,7 @@ export function NotificationProvider({ user, children }: Props) {
           const senderAvatar = data?.user?.avatar;
           const text = (data?.text ?? '').trim() || 'New message';
 
-          showNotification({
+          addReceivedNotification({
             variant: 'received',
             chatId,
             senderId,
@@ -127,7 +227,7 @@ export function NotificationProvider({ user, children }: Props) {
           });
         });
 
-        unsubscribes.current.push(unsub);
+        current[chatId] = unsub;
       });
     }, (err) => {
       console.error('NotificationProvider chats listener error:', err);
@@ -135,15 +235,17 @@ export function NotificationProvider({ user, children }: Props) {
 
     return () => {
       unsubscribeChats();
-      unsubscribes.current.forEach((unsub) => unsub());
-      unsubscribes.current = [];
+      Object.values(listenersByChatId.current).forEach((unsub) => unsub());
+      listenersByChatId.current = {};
     };
-  }, [user.uid, showNotification]);
+  }, [user.uid, addReceivedNotification]);
 
   const value: NotificationContextType = {
     notification,
     notificationsList,
     showNotification,
+    addReceivedNotification,
+    markAsRead,
     hideNotification,
     clearNotification,
     clearAllNotifications,

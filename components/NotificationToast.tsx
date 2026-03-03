@@ -28,17 +28,15 @@ export default function NotificationToast() {
 
   if (!notification) return null;
 
-  const preview = notification.text.length > 60
-    ? notification.text.slice(0, 60) + '…'
-    : notification.text;
+  const preview = notification.text.length > 56 ? notification.text.slice(0, 56) + '…' : notification.text;
   const isSent = notification.variant === 'sent';
   const title = isSent ? `Sent to ${notification.senderName}` : notification.senderName;
 
   return (
     <Animated.View
-      entering={FadeInDown.duration(300).springify()}
-      exiting={FadeOutUp.duration(250)}
-      style={[styles.toast, { top: insets.top + 8 }]}
+      entering={FadeInDown.duration(280).springify()}
+      exiting={FadeOutUp.duration(220)}
+      style={[styles.toast, { top: insets.top + 10 }]}
       pointerEvents="box-none"
     >
       <Pressable
@@ -55,11 +53,11 @@ export default function NotificationToast() {
           )}
         </View>
         <View style={styles.body}>
-          <View style={styles.row}>
-            <MessageCircle size={14} color={Theme.colors.primary} style={styles.messageIcon} />
-            <Text style={styles.senderName} numberOfLines={1}>{title}</Text>
+          <Text style={styles.senderName} numberOfLines={1}>{title}</Text>
+          <View style={styles.previewRow}>
+            <MessageCircle size={12} color={Theme.colors.textMuted} style={styles.messageIcon} />
+            <Text style={styles.preview} numberOfLines={2}>{preview}</Text>
           </View>
-          <Text style={styles.preview} numberOfLines={2}>{preview}</Text>
         </View>
       </Pressable>
     </Animated.View>
@@ -69,16 +67,18 @@ export default function NotificationToast() {
 const styles = StyleSheet.create({
   toast: {
     position: 'absolute',
-    left: 12,
-    right: 12,
+    left: Theme.spacing.md,
+    right: Theme.spacing.md,
     zIndex: 9999,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
+    backgroundColor: Theme.colors.surface,
+    borderRadius: Theme.borderRadius.lg,
+    borderWidth: 1,
+    borderColor: Theme.colors.border,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 12,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 6,
     overflow: 'hidden',
   },
   pressable: {
@@ -88,21 +88,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
   },
   pressed: {
-    opacity: 0.9,
+    opacity: 0.92,
   },
   iconWrap: {
     marginRight: 12,
   },
   avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
   },
   avatarFallback: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#EEF2FF',
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: Theme.colors.background,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -110,21 +110,22 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
   },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 2,
-  },
-  messageIcon: {
-    marginRight: 6,
-  },
   senderName: {
-    flex: 1,
     fontSize: 15,
     fontFamily: Theme.fonts.bold,
     color: Theme.colors.text,
+    marginBottom: 2,
+  },
+  previewRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  messageIcon: {
+    marginRight: 6,
+    marginTop: 2,
   },
   preview: {
+    flex: 1,
     fontSize: 13,
     fontFamily: Theme.fonts.regular,
     color: Theme.colors.textSecondary,

@@ -41,7 +41,9 @@ type Post = {
 export default function FeedScreen({ user, navigation }: Props) {
   const showToast = useToast()?.showToast;
   const { notificationsList } = useNotification();
-  const notificationCount = notificationsList.filter((n) => n.variant === 'received').length;
+  const notificationCount = notificationsList.filter(
+    (n) => n.variant === 'received' && !n.read
+  ).length;
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [posts, setPosts] = useState<Post[]>([]);
   const [isModalVisible, setIsModalVisible] = useState(false);
