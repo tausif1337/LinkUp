@@ -14,7 +14,7 @@ From the project root:
 
 ```bash
 # If you haven’t already
-npm install -g firebase-tools
+pnpm add -g firebase-tools
 firebase login
 firebase init firestore
 # When prompted, choose “Use an existing project” → linkup-ef051, and keep firestore.rules path as firebase/firestore.rules (or move the file to the path it suggests)
